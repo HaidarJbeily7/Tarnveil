@@ -1,16 +1,23 @@
 import { and, eq, sql } from "drizzle-orm";
 import {
   characterInventory,
+  characterSkills,
   characters,
   ledger,
   type Character,
   type InventoryRow,
 } from "@tarnveil/shared/db";
+import { ALL_SKILLS, xpToLevel, type SkillId } from "@tarnveil/shared";
 import type { DrizzleDB } from "./db.js";
 
 export interface InventoryItem {
   kind: string;
   qty: number;
+}
+
+export interface SkillState {
+  xp: number;
+  level: number;
 }
 
 export class CharacterStore {
@@ -92,6 +99,88 @@ export class CharacterStore {
       });
 
       return after;
+    });
+  }
+
+  async getSkills(characterId: string): Promise<Record<SkillId, SkillState>> {
+    const rows = await this.db
+      .select()
+      .from(characterSkills)
+      .where(eq(characterSkills.characterId, characterId));
+    const result: Record<SkillId, SkillState> = {
+      combat: { xp: 0, level: 1 },
+      woodcutting: { xp: 0, level: 1 },
+      mining: { xp: 0, level: 1 },
+      fishing: { xp: 0, level: 1 },
+      cooking: { xp: 0, level: 1 },
+    };
+    for (const r of rows) {
+      if ((ALL_SKILLS as readonly string[]).includes(r.skillId)) {
+        result[r.skillId as SkillId] = { xp: r.xp, level: r.level };
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Award (or remove) XP for a skill. XP is server-side only (R1/R7).
+   * Returns the new {xp, level} after applying the delta and the level cap.
+   * Writes one ledger row per call (R5).
+   */
+  async addXp(
+    characterId: string,
+    skillId: SkillId,
+    delta: number,
+    reason: string,
+  ): Promise<SkillState> {
+    if (!Number.isInteger(delta) || delta === 0) {
+      throw new Error("xp delta must be a non-zero integer");
+    }
+    return this.db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(characterSkills)
+        .where(
+          and(
+            eq(characterSkills.characterId, characterId),
+            eq(characterSkills.skillId, skillId),
+          ),
+        )
+        .for("update");
+
+      const beforeXp = existing?.xp ?? 0;
+      const afterXp = Math.max(0, beforeXp + delta);
+      const afterLevel = xpToLevel(afterXp);
+
+      if (existing) {
+        await tx
+          .update(characterSkills)
+          .set({ xp: afterXp, level: afterLevel })
+          .where(
+            and(
+              eq(characterSkills.characterId, characterId),
+              eq(characterSkills.skillId, skillId),
+            ),
+          );
+      } else {
+        await tx.insert(characterSkills).values({
+          characterId,
+          skillId,
+          xp: afterXp,
+          level: afterLevel,
+        });
+      }
+
+      await tx.insert(ledger).values({
+        characterId,
+        kind: "xp",
+        subkind: skillId,
+        delta,
+        balanceAfter: afterXp,
+        reason,
+      });
+
+      return { xp: afterXp, level: afterLevel };
     });
   }
 

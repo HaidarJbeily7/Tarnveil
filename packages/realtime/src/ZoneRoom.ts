@@ -4,11 +4,19 @@ import {
   gridFromMatrix,
   inRange,
   type Grid,
+  type SkillId,
 } from "@tarnveil/shared";
 import { CharacterStore } from "./CharacterStore.js";
 import { getDb } from "./db.js";
-import { findNode } from "./resources.js";
+import { findNode, type ResourceKind } from "./resources.js";
 import { PlayerState, ZoneState } from "./state.js";
+
+const XP_PER_GATHER = 25;
+const SKILL_BY_RESOURCE: Record<ResourceKind, SkillId> = {
+  tree: "woodcutting",
+  rock: "mining",
+  fish: "fishing",
+};
 
 const ZONE_SIZE = 10;
 const GATHER_RANGE = 1;
@@ -203,6 +211,12 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
       );
       const inv = this.inventories.get(client.sessionId);
       if (inv !== undefined) inv.set(node.resource, after);
+      await this.store.addXp(
+        charId,
+        SKILL_BY_RESOURCE[node.kind],
+        XP_PER_GATHER,
+        `gather:${node.id}`,
+      );
       this.lastGatherResult = "ok";
       return "ok";
     } catch (err) {
