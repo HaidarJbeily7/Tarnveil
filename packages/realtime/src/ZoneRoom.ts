@@ -114,8 +114,12 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
   private nodeDepletedUntil = new Map<string, number>();
   private mobRespawnAt = new Map<string, number>();
   private inHandoff = new Set<string>();
+  // Per-(session, action) sliding rate counter. Buckets the last 1s.
+  private rateCounters = new Map<string, { count: number; windowStart: number }>();
   public lastGatherResult: GatherResult | null = null;
   public lastAttackResult: AttackResult | null = null;
+  /** Counter incremented whenever a rate/sanity check rejects a message. */
+  public cheatFlags = 0;
 
   override onCreate(options?: JoinOptions): void {
     // roomName is the zone id (server.ts registers one room per ZONES key).
@@ -208,9 +212,35 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
     this.clientToChar.delete(client.sessionId);
     this.inventories.delete(client.sessionId);
     this.state.players.delete(client.sessionId);
+    // Drop any rate counters for this session so memory doesn't leak.
+    for (const key of [...this.rateCounters.keys()]) {
+      if (key.startsWith(`${client.sessionId}:`)) this.rateCounters.delete(key);
+    }
+  }
+
+  /**
+   * Returns true if this (session, action) has exceeded `limit` messages in
+   * the trailing 1 s. Increments cheatFlags on rejection so observability
+   * picks up suspicious activity.
+   */
+  private overRate(sessionId: string, action: string, limit: number): boolean {
+    const key = `${sessionId}:${action}`;
+    const now = Date.now();
+    const slot = this.rateCounters.get(key);
+    if (slot === undefined || now - slot.windowStart >= 1000) {
+      this.rateCounters.set(key, { count: 1, windowStart: now });
+      return false;
+    }
+    slot.count += 1;
+    if (slot.count > limit) {
+      this.cheatFlags += 1;
+      return true;
+    }
+    return false;
   }
 
   private handleMoveTo(client: Client, payload: unknown): void {
+    if (this.overRate(client.sessionId, "move", 30)) return;
     if (!isMoveTo(payload)) return;
     const player = this.state.players.get(client.sessionId);
     if (!player) return;
@@ -284,6 +314,10 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
   }
 
   private async handleGather(client: Client, payload: unknown): Promise<GatherResult> {
+    if (this.overRate(client.sessionId, "gather", 5)) {
+      this.lastGatherResult = "cooldown";
+      return "cooldown";
+    }
     if (!isGather(payload)) {
       this.lastGatherResult = "no-node";
       return "no-node";
@@ -352,6 +386,10 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
   }
 
   private async handleAttack(client: Client, payload: unknown): Promise<AttackResult> {
+    if (this.overRate(client.sessionId, "attack", 10)) {
+      this.lastAttackResult = "out-of-range";
+      return "out-of-range";
+    }
     if (!isAttack(payload)) {
       this.lastAttackResult = "no-mob";
       return "no-mob";
