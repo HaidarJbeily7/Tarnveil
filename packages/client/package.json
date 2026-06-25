@@ -18,6 +18,7 @@
     "@fontsource/spline-sans-mono": "5.2.8",
     "@tarnveil/shared": "workspace:*",
     "colyseus.js": "0.16.22",
+    "lucide": "1.21.0",
     "phaser": "3.86.0"
   },
   "devDependencies": {
