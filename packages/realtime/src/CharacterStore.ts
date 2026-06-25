@@ -412,6 +412,166 @@ export class CharacterStore {
       .where(eq(characters.id, characterId));
   }
 
+  /**
+   * Atomic merchant buy: pay `totalCost` gold, receive `qty` of `kind`.
+   * One transaction, two ledger rows (gold out + item in). Throws if the
+   * player can't afford it; state is untouched on failure.
+   */
+  async buyFromMerchant(
+    characterId: string,
+    kind: string,
+    qty: number,
+    totalCost: number,
+    reason: string,
+  ): Promise<{ gold: number; inventoryQty: number }> {
+    if (!Number.isInteger(qty) || qty <= 0) throw new Error("qty must be > 0");
+    if (!Number.isInteger(totalCost) || totalCost < 0) {
+      throw new Error("totalCost must be a non-negative integer");
+    }
+    return this.db.transaction(async (tx) => {
+      const [c] = await tx
+        .select({ gold: characters.gold })
+        .from(characters)
+        .where(eq(characters.id, characterId))
+        .for("update");
+      if (!c) throw new Error("character not found");
+      if (c.gold < totalCost) throw new Error("insufficient gold");
+      const goldAfter = c.gold - totalCost;
+      await tx
+        .update(characters)
+        .set({ gold: goldAfter, updatedAt: sql`now()` })
+        .where(eq(characters.id, characterId));
+      await tx.insert(ledger).values({
+        characterId,
+        kind: "gold",
+        subkind: null,
+        delta: -totalCost,
+        balanceAfter: goldAfter,
+        reason: `merchant-buy:${reason}`,
+      });
+
+      const [inv] = await tx
+        .select()
+        .from(characterInventory)
+        .where(
+          and(
+            eq(characterInventory.characterId, characterId),
+            eq(characterInventory.itemKind, kind),
+          ),
+        )
+        .for("update");
+      const after = (inv?.qty ?? 0) + qty;
+      if (inv) {
+        await tx
+          .update(characterInventory)
+          .set({ qty: after })
+          .where(
+            and(
+              eq(characterInventory.characterId, characterId),
+              eq(characterInventory.itemKind, kind),
+            ),
+          );
+      } else {
+        await tx
+          .insert(characterInventory)
+          .values({ characterId, itemKind: kind, qty: after });
+      }
+      await tx.insert(ledger).values({
+        characterId,
+        kind: "item",
+        subkind: kind,
+        delta: qty,
+        balanceAfter: after,
+        reason: `merchant-buy:${reason}`,
+      });
+
+      return { gold: goldAfter, inventoryQty: after };
+    });
+  }
+
+  /**
+   * Atomic merchant sell: hand over `qty` of `kind`, receive `totalRevenue`
+   * gold. Throws if the player doesn't have enough of the item; state is
+   * untouched on failure.
+   */
+  async sellToMerchant(
+    characterId: string,
+    kind: string,
+    qty: number,
+    totalRevenue: number,
+    reason: string,
+  ): Promise<{ gold: number; inventoryQty: number }> {
+    if (!Number.isInteger(qty) || qty <= 0) throw new Error("qty must be > 0");
+    if (!Number.isInteger(totalRevenue) || totalRevenue < 0) {
+      throw new Error("totalRevenue must be a non-negative integer");
+    }
+    return this.db.transaction(async (tx) => {
+      const [inv] = await tx
+        .select()
+        .from(characterInventory)
+        .where(
+          and(
+            eq(characterInventory.characterId, characterId),
+            eq(characterInventory.itemKind, kind),
+          ),
+        )
+        .for("update");
+      const have = inv?.qty ?? 0;
+      if (have < qty) throw new Error(`insufficient ${kind}`);
+      const after = have - qty;
+      if (after === 0 && inv) {
+        await tx
+          .delete(characterInventory)
+          .where(
+            and(
+              eq(characterInventory.characterId, characterId),
+              eq(characterInventory.itemKind, kind),
+            ),
+          );
+      } else if (inv) {
+        await tx
+          .update(characterInventory)
+          .set({ qty: after })
+          .where(
+            and(
+              eq(characterInventory.characterId, characterId),
+              eq(characterInventory.itemKind, kind),
+            ),
+          );
+      }
+      await tx.insert(ledger).values({
+        characterId,
+        kind: "item",
+        subkind: kind,
+        delta: -qty,
+        balanceAfter: after,
+        reason: `merchant-sell:${reason}`,
+      });
+
+      const [c] = await tx
+        .select({ gold: characters.gold })
+        .from(characters)
+        .where(eq(characters.id, characterId))
+        .for("update");
+      if (!c) throw new Error("character not found");
+      const goldAfter = c.gold + totalRevenue;
+      await tx
+        .update(characters)
+        .set({ gold: goldAfter, updatedAt: sql`now()` })
+        .where(eq(characters.id, characterId));
+      await tx.insert(ledger).values({
+        characterId,
+        kind: "gold",
+        subkind: null,
+        delta: totalRevenue,
+        balanceAfter: goldAfter,
+        reason: `merchant-sell:${reason}`,
+      });
+
+      return { gold: goldAfter, inventoryQty: after };
+    });
+  }
+
   async addGold(
     characterId: string,
     delta: number,

@@ -5,6 +5,7 @@ import {
 } from "@tarnveil/shared";
 import type { ResourceNode } from "./resources.js";
 import type { MobDef } from "./mobs.js";
+import { MAINLAND_MERCHANTS, type Merchant } from "./merchants.js";
 
 export interface Portal {
   at: TileCoord;
@@ -22,6 +23,7 @@ export interface ZoneConfig {
   /** Inclusive bounds. Players within these tiles regenerate HP per tick. */
   safeZone: { topLeft: TileCoord; bottomRight: TileCoord } | null;
   portals: readonly Portal[];
+  merchants: readonly Merchant[];
 }
 
 const ZONE_SIZE = 10;
@@ -64,6 +66,7 @@ const MAINLAND: ZoneConfig = {
     { at: { col: 9, row: 0 }, targetZone: "fishing", spawnAt: { col: 1, row: 1 } },
     { at: { col: 0, row: 9 }, targetZone: "pvp", spawnAt: { col: 1, row: 1 } },
   ],
+  merchants: MAINLAND_MERCHANTS,
 };
 
 const GATHERING: ZoneConfig = {
@@ -81,6 +84,7 @@ const GATHERING: ZoneConfig = {
   portals: [
     { at: { col: 0, row: 0 }, targetZone: "mainland", spawnAt: { col: 8, row: 8 } },
   ],
+  merchants: [],
 };
 
 const PVP: ZoneConfig = {
@@ -114,6 +118,7 @@ const PVP: ZoneConfig = {
   portals: [
     { at: { col: 0, row: 0 }, targetZone: "mainland", spawnAt: { col: 0, row: 8 } },
   ],
+  merchants: [],
 };
 
 const FISHING: ZoneConfig = {
@@ -129,6 +134,7 @@ const FISHING: ZoneConfig = {
   portals: [
     { at: { col: 9, row: 9 }, targetZone: "mainland", spawnAt: { col: 8, row: 0 } },
   ],
+  merchants: [],
 };
 
 export const ZONES: Record<string, ZoneConfig> = {

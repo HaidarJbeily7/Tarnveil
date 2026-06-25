@@ -140,6 +140,12 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
     this.onMessage("bank-withdraw", (client, payload) => {
       void this.handleBank(client, payload, "withdraw");
     });
+    this.onMessage("merchant-buy", (client, payload) => {
+      void this.handleMerchant(client, payload, "buy");
+    });
+    this.onMessage("merchant-sell", (client, payload) => {
+      void this.handleMerchant(client, payload, "sell");
+    });
 
     this.setSimulationInterval(() => this.tick(), SIM_TICK_MS);
   }
@@ -372,6 +378,50 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
     await this.killMob(def, charId, client.sessionId);
     this.lastAttackResult = "kill";
     return "kill";
+  }
+
+  private async handleMerchant(
+    client: Client,
+    payload: unknown,
+    op: "buy" | "sell",
+  ): Promise<void> {
+    if (typeof payload !== "object" || payload === null) return;
+    const p = payload as Record<string, unknown>;
+    const merchantId = p["merchantId"];
+    const itemKind = p["itemKind"];
+    const qty = p["qty"];
+    if (
+      typeof merchantId !== "string" ||
+      typeof itemKind !== "string" ||
+      !Number.isInteger(qty) ||
+      (qty as number) <= 0
+    ) {
+      return;
+    }
+    const merchant = this.zone.merchants.find((m) => m.id === merchantId);
+    if (merchant === undefined) return;
+    const player = this.state.players.get(client.sessionId);
+    const charId = this.clientToChar.get(client.sessionId);
+    if (player === undefined || charId === undefined || this.store === null) return;
+    if (!inRange({ col: player.col, row: player.row }, merchant.tile, 1)) return;
+
+    const price = op === "buy" ? merchant.sells[itemKind] : merchant.buys[itemKind];
+    if (price === undefined) return;
+    const total = price * (qty as number);
+
+    try {
+      const result =
+        op === "buy"
+          ? await this.store.buyFromMerchant(charId, itemKind, qty as number, total, merchant.id)
+          : await this.store.sellToMerchant(charId, itemKind, qty as number, total, merchant.id);
+      const inv = this.inventories.get(client.sessionId);
+      if (inv !== undefined) {
+        if (result.inventoryQty <= 0) inv.delete(itemKind);
+        else inv.set(itemKind, result.inventoryQty);
+      }
+    } catch (err) {
+      console.error(`[zone] merchant-${op} failed`, err);
+    }
   }
 
   private async handleBank(
