@@ -8,6 +8,7 @@ import { registerCharacterRoutes } from "./routes/character.js";
 import { registerChatRoutes } from "./routes/chat.js";
 import { registerCosmeticRoute } from "./routes/cosmetic.js";
 import { registerDmRoutes } from "./routes/dm.js";
+import { registerEventsRoutes } from "./routes/events.js";
 import { registerFriendsRoutes } from "./routes/friends.js";
 import { registerMarketRoutes } from "./routes/market.js";
 import { registerPresenceRoute } from "./routes/presence.js";
@@ -40,6 +41,7 @@ export function buildApp(): ReturnType<typeof Fastify> {
   registerMarketRoutes(app, db);
   registerCosmeticRoute(app, db);
   registerAdminRoutes(app, db);
+  registerEventsRoutes(app, redis);
   return app;
 }
 
