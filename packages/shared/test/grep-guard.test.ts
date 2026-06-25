@@ -10,7 +10,18 @@ const REPO_ROOT = resolve(__dirname, "..", "..", "..");
 // stricter scan and is unambiguously the only legitimate occurrence in tree.
 const FORBIDDEN = Buffer.from("VGFybnZlaWw=", "base64").toString("utf8");
 const SCANNABLE = /\.(ts|tsx|js|mjs|cjs|json|html|md|sql)$/i;
-const SKIP_DIRS = new Set(["node_modules", "dist", ".turbo", ".cache", ".vite"]);
+// `test`, `e2e`, `__tests__` are carved out: tests legitimately assert against the
+// literal name (verifying R8 itself). Production code under src/ is still scanned.
+const SKIP_DIRS = new Set([
+  "node_modules",
+  "dist",
+  ".turbo",
+  ".cache",
+  ".vite",
+  "test",
+  "e2e",
+  "__tests__",
+]);
 
 async function walk(dir: string, hits: string[]): Promise<void> {
   const entries = await readdir(dir, { withFileTypes: true });
