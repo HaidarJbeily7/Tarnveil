@@ -13,6 +13,7 @@ import { registerFriendsRoutes } from "./routes/friends.js";
 import { registerMarketRoutes } from "./routes/market.js";
 import { registerPresenceRoute } from "./routes/presence.js";
 import { registerSpectateRoute } from "./routes/spectate.js";
+import { registerWalletRoutes } from "./routes/wallet.js";
 
 export function buildApp(): ReturnType<typeof Fastify> {
   const app = Fastify({ logger: false });
@@ -42,6 +43,7 @@ export function buildApp(): ReturnType<typeof Fastify> {
   registerCosmeticRoute(app, db);
   registerAdminRoutes(app, db);
   registerEventsRoutes(app, redis);
+  registerWalletRoutes(app, redis);
   return app;
 }
 
