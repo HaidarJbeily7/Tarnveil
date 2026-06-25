@@ -10,9 +10,12 @@
     "./game.config": "./game.config.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "typescript": "5.6.3"
+    "@types/node": "22.10.1",
+    "typescript": "5.6.3",
+    "vitest": "2.1.8"
   }
 }
