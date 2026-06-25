@@ -1,0 +1,57 @@
+/* F1 — HUD region grid. Fixed anchors, bounded max-sizes; the world canvas
+ * stays interactive in the empty space between panels.
+ */
+.hud-layout {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-hud);
+}
+.hud-layout > * { pointer-events: auto; }
+
+.hud-region {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  /* Hide empty regions so a region with no attached panel doesn't leave
+   * a clickable hole or a debugger-visible div in the layout. */
+  pointer-events: none;
+}
+.hud-region:empty { display: none; }
+.hud-region > * { pointer-events: auto; }
+
+.hud-region--topLeft {
+  top: var(--space-3); left: var(--space-3);
+  max-width: 280px;
+}
+.hud-region--topRight {
+  top: var(--space-3); right: var(--space-3);
+  max-width: 220px;
+}
+.hud-region--bottomLeft {
+  bottom: var(--space-3); left: var(--space-3);
+  max-width: 320px;
+}
+.hud-region--bottomCenter {
+  bottom: var(--space-3); left: 50%; transform: translateX(-50%);
+  max-width: 600px;
+  align-items: center;
+}
+.hud-region--bottomRight {
+  bottom: var(--space-3); right: var(--space-3);
+  max-width: 240px;
+  align-items: flex-end;
+}
+.hud-region--rightEdge {
+  top: 50%; right: var(--space-3); transform: translateY(-50%);
+  max-width: 280px; max-height: 60vh;
+}
+
+@media (max-width: 720px) {
+  .hud-region--topLeft  { max-width: 60vw; }
+  .hud-region--topRight { max-width: 30vw; }
+  .hud-region--bottomLeft, .hud-region--bottomRight { max-width: 40vw; }
+  .hud-region--bottomCenter { max-width: 90vw; }
+  .hud-region--rightEdge { max-width: 60vw; }
+}
