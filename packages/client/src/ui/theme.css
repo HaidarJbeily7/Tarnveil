@@ -1,0 +1,66 @@
+/* Tarnveil design tokens — see theme.ts for the canonical TS export.
+ * Component CSS must reference these custom properties; no raw hex outside
+ * this file (enforced by test/no-raw-hex.test.ts).
+ */
+
+:root {
+  /* --- Colour: six named values --- */
+  --ink: #0E1B22;
+  --slate: #16313B;
+  --mist: #DCE6E4;
+  --lake: #2F8E8C;
+  --lantern: #E8A14B;
+  --rust: #C2562F;
+
+  /* --- Muted supports --- */
+  --reed: #9CB07A;
+  --brass: #C8A668;
+
+  /* --- Derived: hairline at 12% mist --- */
+  --hairline: rgba(220, 230, 228, 0.12);
+
+  /* --- Spacing: 8 px grid --- */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* --- Radius --- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+  --radius-pill: 9999px;
+
+  /* --- Z-index layers --- */
+  --z-world: 0;
+  --z-hud: 10;
+  --z-panels: 20;
+  --z-modals: 30;
+  --z-toasts: 40;
+
+  /* --- Motion --- */
+  --motion-fast: 120ms;
+  --motion-base: 220ms;
+  --motion-slow: 360ms;
+  --ease-water-ripple: cubic-bezier(0.18, 0.74, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+    --motion-slow: 0ms;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
