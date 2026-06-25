@@ -5,12 +5,14 @@ import { boot, ColyseusTestServer } from "@colyseus/testing";
 import { inArray } from "drizzle-orm";
 import { characters } from "@tarnveil/shared/db";
 import { ZoneRoom } from "../src/ZoneRoom.js";
-import { ZONE_MOBS } from "../src/mobs.js";
+import { ZONES } from "../src/zones.js";
 import type { ZoneState } from "../src/state.js";
+
+const MAINLAND_MOBS = ZONES.mainland.mobs;
 import { CharacterStore } from "../src/CharacterStore.js";
 import { closeDb, getDb } from "../src/db.js";
 
-const ROOM = "zone";
+const ROOM = "mainland";
 const settle = (ms = 200): Promise<void> => new Promise((r) => setTimeout(r, ms));
 const createdNames: string[] = [];
 function uniqueName(prefix: string): string {
@@ -65,7 +67,7 @@ describe("ZoneRoom combat", () => {
     await settle();
     const zone = room as unknown as { lastAttackResult: ZoneRoom["lastAttackResult"] };
     expect(zone.lastAttackResult).toBe("out-of-range");
-    const wolf = ZONE_MOBS[0]!;
+    const wolf = MAINLAND_MOBS[0]!;
     const mob = (room.state as ZoneState).mobs.get(wolf.id);
     expect(mob?.hp).toBe(wolf.hpMax);
   });
@@ -75,7 +77,7 @@ describe("ZoneRoom combat", () => {
     const { room, client } = await joinAndPlace(name, 7, 6); // adjacent to wolf (7,7)
     client.send("attack", { mobId: "wolf-1", damage: 9999 }); // claim huge dmg
     await settle();
-    const wolf = ZONE_MOBS[0]!;
+    const wolf = MAINLAND_MOBS[0]!;
     const mob = (room.state as ZoneState).mobs.get(wolf.id);
     // Only one hit's worth gone — the client's damage field was discarded.
     expect(mob?.hp).toBe(wolf.hpMax - 1);
@@ -84,7 +86,7 @@ describe("ZoneRoom combat", () => {
   it("killing a mob yields its drop in inventory and despawns the mob", async () => {
     const name = uniqueName("combat-kill");
     const { room, client } = await joinAndPlace(name, 7, 6);
-    const wolf = ZONE_MOBS[0]!;
+    const wolf = MAINLAND_MOBS[0]!;
     // 3 HP, 1 dmg per hit — three attacks to kill.
     for (let i = 0; i < wolf.hpMax; i++) {
       client.send("attack", { mobId: wolf.id });

@@ -1,7 +1,6 @@
 import { Room, type Client } from "colyseus";
 import {
   findPath,
-  gridFromMatrix,
   inRange,
   tileDistance,
   type Grid,
@@ -10,11 +9,11 @@ import {
 } from "@tarnveil/shared";
 import { CharacterStore } from "./CharacterStore.js";
 import { getDb } from "./db.js";
-import { findNode, type ResourceKind } from "./resources.js";
-import { ZONE_MOBS, PLAYER_BASE_DAMAGE, findMobDef } from "./mobs.js";
+import { type ResourceKind, type ResourceNode } from "./resources.js";
+import { PLAYER_BASE_DAMAGE, type MobDef } from "./mobs.js";
 import { MobState, PlayerState, ZoneState } from "./state.js";
+import { getZoneConfig, type ZoneConfig } from "./zones.js";
 
-const ZONE_SIZE = 10;
 const GATHER_RANGE = 1;
 const ATTACK_RANGE = 1;
 const XP_PER_GATHER = 25;
@@ -27,18 +26,6 @@ const SKILL_BY_RESOURCE: Record<ResourceKind, SkillId> = {
   rock: "mining",
   fish: "fishing",
 };
-
-function buildZoneGrid(): Grid {
-  const matrix: boolean[][] = [];
-  for (let r = 0; r < ZONE_SIZE; r++) {
-    const row: boolean[] = [];
-    for (let c = 0; c < ZONE_SIZE; c++) row.push(true);
-    matrix.push(row);
-  }
-  matrix[3]![3] = false;
-  matrix[3]![4] = false;
-  return gridFromMatrix(matrix);
-}
 
 interface MoveToPayload {
   col: number;
@@ -100,7 +87,8 @@ export type AttackResult =
   | "out-of-range";
 
 export class ZoneRoom extends Room<{ state: ZoneState }> {
-  private grid: Grid = buildZoneGrid();
+  private zone!: ZoneConfig;
+  private grid!: Grid;
   private store: CharacterStore | null = null;
   private clientToChar = new Map<string, string>();
   private inventories = new Map<string, Map<string, number>>();
@@ -110,11 +98,14 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
   public lastAttackResult: AttackResult | null = null;
 
   override onCreate(): void {
+    // roomName is the zone id (server.ts registers one room per ZONES key).
+    this.zone = getZoneConfig(this.roomName);
+    this.grid = this.zone.buildGrid();
     this.setState(new ZoneState());
     this.autoDispose = false;
     this.store = new CharacterStore(getDb());
 
-    for (const def of ZONE_MOBS) this.spawnMob(def.id);
+    for (const def of this.zone.mobs) this.spawnMob(def);
 
     this.onMessage("move-to", (client, payload) => this.handleMoveTo(client, payload));
     this.onMessage("debug-give-item", (client, payload) =>
@@ -150,8 +141,15 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
 
     const player = new PlayerState();
     player.id = client.sessionId;
-    player.col = character.col;
-    player.row = character.row;
+    // If the character's persisted zone matches this room, restore exact
+    // coords; otherwise drop them at this zone's spawn (zone handoff in 3.2).
+    if (character.zone === this.zone.id) {
+      player.col = character.col;
+      player.row = character.row;
+    } else {
+      player.col = this.zone.spawn.col;
+      player.row = this.zone.spawn.row;
+    }
     player.hp = character.hp;
     player.hpMax = character.hpMax;
     this.state.players.set(client.sessionId, player);
@@ -161,7 +159,7 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
     const player = this.state.players.get(client.sessionId);
     const charId = this.clientToChar.get(client.sessionId);
     if (player !== undefined && charId !== undefined && this.store !== null) {
-      await this.store.savePosition(charId, player.col, player.row, "mainland");
+      await this.store.savePosition(charId, player.col, player.row, this.zone.id);
     }
     this.clientToChar.delete(client.sessionId);
     this.inventories.delete(client.sessionId);
@@ -202,7 +200,9 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
       this.lastGatherResult = "no-node";
       return "no-node";
     }
-    const node = findNode(payload.nodeId);
+    const node: ResourceNode | undefined = this.zone.resources.find(
+      (n) => n.id === payload.nodeId,
+    );
     if (node === undefined) {
       this.lastGatherResult = "no-node";
       return "no-node";
@@ -261,7 +261,7 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
       this.lastAttackResult = "no-mob";
       return "no-mob";
     }
-    const def = findMobDef(payload.mobId);
+    const def: MobDef | undefined = this.zone.mobs.find((m) => m.id === payload.mobId);
     if (def === undefined) {
       this.lastAttackResult = "no-mob";
       return "no-mob";
@@ -299,10 +299,8 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
     return "kill";
   }
 
-  private async killMob(def: { id: string; drop: { kind: string; qty: number } }, charId: string, sessionId: string): Promise<void> {
+  private async killMob(def: MobDef, charId: string, sessionId: string): Promise<void> {
     if (this.store === null) return;
-    const mobDef = findMobDef(def.id);
-    if (mobDef === undefined) return;
     try {
       const after = await this.store.addItem(
         charId,
@@ -317,12 +315,10 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
       console.error("[zone] kill persist failed", err);
     }
     this.state.mobs.delete(def.id);
-    this.mobRespawnAt.set(def.id, Date.now() + mobDef.respawnMs);
+    this.mobRespawnAt.set(def.id, Date.now() + def.respawnMs);
   }
 
-  private spawnMob(id: string): void {
-    const def = findMobDef(id);
-    if (def === undefined) return;
+  private spawnMob(def: MobDef): void {
     const mob = new MobState();
     mob.id = def.id;
     mob.kind = def.kind;
@@ -339,13 +335,14 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
 
     for (const [id, at] of this.mobRespawnAt) {
       if (now >= at) {
-        this.spawnMob(id);
+        const def = this.zone.mobs.find((m) => m.id === id);
+        if (def !== undefined) this.spawnMob(def);
         this.mobRespawnAt.delete(id);
       }
     }
 
     for (const mob of this.state.mobs.values()) {
-      const def = findMobDef(mob.id);
+      const def = this.zone.mobs.find((m) => m.id === mob.id);
       if (def === undefined) continue;
       const target = this.nearestPlayerInRange(mob.col, mob.row, def.aggroRange);
       if (target === null) continue;

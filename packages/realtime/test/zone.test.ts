@@ -8,7 +8,7 @@ import { ZoneRoom } from "../src/ZoneRoom.js";
 import type { ZoneState } from "../src/state.js";
 import { closeDb, getDb } from "../src/db.js";
 
-const ROOM = "zone";
+const ROOM = "mainland";
 const createdNames: string[] = [];
 function uniqueName(prefix: string): string {
   const n = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

@@ -8,7 +8,7 @@ import { ZoneRoom } from "../src/ZoneRoom.js";
 import type { ZoneState } from "../src/state.js";
 import { closeDb, getDb } from "../src/db.js";
 
-const ROOM = "zone";
+const ROOM = "mainland";
 const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 100));
 const createdNames: string[] = [];
 function uniqueName(prefix: string): string {

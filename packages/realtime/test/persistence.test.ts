@@ -9,7 +9,7 @@ import type { ZoneState } from "../src/state.js";
 import { CharacterStore } from "../src/CharacterStore.js";
 import { closeDb, getDb } from "../src/db.js";
 
-const ROOM = "zone";
+const ROOM = "mainland";
 const settle = (ms = 200): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 async function startServer(): Promise<ColyseusTestServer> {

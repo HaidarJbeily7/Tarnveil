@@ -16,19 +16,4 @@ export interface MobDef {
 
 export const PLAYER_BASE_DAMAGE = 1;
 
-export const ZONE_MOBS: readonly MobDef[] = [
-  {
-    id: "wolf-1",
-    kind: "wolf",
-    spawn: { col: 7, row: 7 },
-    hpMax: 3,
-    damage: 1,
-    aggroRange: 3,
-    drop: { kind: "hide", qty: 1 },
-    respawnMs: 4_000,
-  },
-];
-
-export function findMobDef(id: string): MobDef | undefined {
-  return ZONE_MOBS.find((m) => m.id === id);
-}
+// Concrete mob lists live in zones.ts; this module only defines the shape.
