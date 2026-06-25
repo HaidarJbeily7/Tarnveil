@@ -1,0 +1,61 @@
+.loading {
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--lake) 22%, transparent), transparent 55%),
+    var(--ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--mist); font-family: var(--font-body);
+  z-index: var(--z-modals);
+}
+.loading__mist {
+  position: absolute; inset: 30% -10% 40% -10%;
+  background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--mist) 8%, transparent) 50%, transparent 100%);
+  filter: blur(36px);
+  animation: loading-drift 14s linear infinite;
+  pointer-events: none;
+}
+.loading__wordmark {
+  font-family: var(--font-display); font-size: clamp(40px, 7vw, 84px); font-weight: 700;
+  letter-spacing: -0.02em; line-height: 1; margin: 0;
+  text-shadow: 0 0 24px color-mix(in srgb, var(--lake) 60%, transparent);
+}
+.loading__tip {
+  margin-top: var(--space-3); max-width: 36ch; text-align: center;
+  color: color-mix(in srgb, var(--mist) 75%, transparent);
+  font-size: var(--type-body-sm);
+  min-height: 3em;
+}
+.loading__bar { margin-top: var(--space-4); width: min(360px, 80vw); height: 4px; background: var(--hairline); border-radius: var(--radius-pill); overflow: hidden; }
+.loading__bar-fill { height: 100%; background: var(--lake); width: 0%; transition: width 0.5s var(--ease-water-ripple); }
+.loading__pct {
+  margin-top: var(--space-1); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--type-mono-sm);
+  color: color-mix(in srgb, var(--mist) 55%, transparent);
+}
+
+@keyframes loading-drift {
+  0%   { transform: translateX(-3%); }
+  100% { transform: translateX(3%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading__mist { animation: none; }
+}
+
+/* Veil wipe between zones */
+.veil-wipe {
+  position: fixed; inset: 0; pointer-events: none; z-index: var(--z-toasts);
+  background: linear-gradient(90deg, transparent 0%, var(--ink) 50%, transparent 100%);
+  transform: translateX(-110%);
+  animation: veil-wipe 0.55s var(--ease-water-ripple) forwards;
+}
+@keyframes veil-wipe {
+  0%   { transform: translateX(-110%); }
+  100% { transform: translateX(110%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .veil-wipe {
+    background: var(--ink); animation: veil-fade 0.001s linear forwards;
+    transform: none;
+  }
+  @keyframes veil-fade { to { opacity: 0; } }
+}
