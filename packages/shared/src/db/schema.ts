@@ -106,6 +106,29 @@ export const friends = pgTable(
   }),
 );
 
+export const marketplaceListings = pgTable(
+  "marketplace_listings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sellerId: uuid("seller_id")
+      .notNull()
+      .references(() => characters.id, { onDelete: "cascade" }),
+    itemKind: text("item_kind").notNull(),
+    qty: integer("qty").notNull(),
+    totalPrice: bigint("total_price", { mode: "number" }).notNull(),
+    status: text("status").notNull().default("active"),
+    listedAt: timestamp("listed_at", { withTimezone: true }).notNull().defaultNow(),
+    soldTo: uuid("sold_to").references(() => characters.id, { onDelete: "set null" }),
+    soldAt: timestamp("sold_at", { withTimezone: true }),
+  },
+  (t) => ({
+    activeByItem: index("market_active_idx").on(t.itemKind),
+    bySeller: index("market_seller_idx").on(t.sellerId),
+  }),
+);
+
+export type Listing = typeof marketplaceListings.$inferSelect;
+
 export type Character = typeof characters.$inferSelect;
 export type NewCharacter = typeof characters.$inferInsert;
 export type InventoryRow = typeof characterInventory.$inferSelect;
