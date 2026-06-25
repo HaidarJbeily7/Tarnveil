@@ -1,0 +1,162 @@
+/* In-world HUD overlay (C4). Edge-anchored panels around a moving world. */
+
+#ingame-hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-hud);
+  font-family: var(--font-body);
+  color: var(--mist);
+}
+
+#ingame-hud > * {
+  pointer-events: auto;
+}
+
+/* --- Vitals: bottom-left --- */
+.ingame-hud__vitals {
+  position: fixed;
+  bottom: var(--space-3);
+  left: var(--space-3);
+  width: min(280px, 28vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ingame-hud__skills {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--hairline);
+}
+
+.ingame-hud__skill-row {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--reed);
+}
+.ingame-hud__skill-row .bar {
+  color: var(--mist);
+}
+.ingame-hud__skill-row .bar__head {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* --- Hotbar: bottom-center --- */
+.ingame-hud__hotbar {
+  position: fixed;
+  bottom: var(--space-3);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--space-2);
+}
+
+.ingame-hud__hotbar-row {
+  display: grid;
+  grid-template-columns: repeat(10, 48px);
+  gap: var(--space-2);
+}
+
+.ingame-hud__slot-hint {
+  position: absolute;
+  left: 3px;
+  top: 1px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: color-mix(in srgb, var(--mist) 55%, transparent);
+}
+
+/* --- Currency: bottom-right --- */
+.ingame-hud__currency {
+  position: fixed;
+  bottom: var(--space-3);
+  right: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 180px;
+}
+.ingame-hud__currency-row {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ingame-hud__currency-label {
+  color: color-mix(in srgb, var(--mist) 65%, transparent);
+  font-size: var(--type-mono-sm);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.ingame-hud__currency-value {
+  text-align: right;
+}
+.ingame-hud__currency--gold { color: var(--lantern); }
+.ingame-hud__currency--token { color: var(--lake); }
+
+/* --- Minimap: top-right --- */
+.ingame-hud__minimap {
+  position: fixed;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.ingame-hud__minimap-canvas {
+  position: relative;
+  aspect-ratio: 1;
+  width: 100%;
+  background:
+    linear-gradient(45deg, color-mix(in srgb, var(--reed) 18%, transparent) 0 50%, transparent 50% 100%),
+    color-mix(in srgb, var(--ink) 80%, transparent);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.ingame-hud__minimap-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lantern);
+  box-shadow: 0 0 6px var(--lantern);
+  transform: translate(-50%, -50%);
+  left: 10%;
+  top: 10%;
+  transition: left var(--motion-base) ease, top var(--motion-base) ease;
+}
+.ingame-hud__minimap-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: color-mix(in srgb, var(--mist) 70%, transparent);
+}
+
+/* Make sure the existing #hud-wood (used by chop e2e) keeps reading the
+ * hotbar's "Wood" slot count. We expose it as a sub-element hooked when
+ * the wood slot quantity updates.
+ */
+#hud-wood {
+  display: none;
+}
+
+/* Mobile compaction */
+@media (max-width: 720px) {
+  .ingame-hud__vitals { width: 60vw; }
+  .ingame-hud__currency { display: none; }
+  .ingame-hud__hotbar-row {
+    grid-template-columns: repeat(5, 40px);
+    grid-template-rows: repeat(2, 40px);
+  }
+  .ingame-hud__minimap { width: 100px; }
+}

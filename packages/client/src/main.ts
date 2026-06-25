@@ -36,6 +36,11 @@ if (ui === "gallery") {
   // Phase C3 — character select / create.
   void import("./ui/screens/character.js").then((m) => m.mountCharacter());
 } else {
+  // Default route — boot the Phaser game and the in-world HUD overlay (C4).
+  void import("./ui/in-game-hud.js").then((m) => {
+    const handle = m.mountInGameHud();
+    handle.setState({ gold: 0, token: 0, position: { col: 1, row: 1 } });
+  });
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     parent: "game",

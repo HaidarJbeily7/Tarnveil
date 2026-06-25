@@ -5,3 +5,4 @@ export { createTabs, type TabsOptions, type TabsControl } from "./tabs.js";
 export { createSlot, type SlotOptions } from "./slot.js";
 export { createBar, type BarOptions, type BarControl, type BarVariant } from "./bar.js";
 export { showToast, type ToastOptions, type ToastTone } from "./toast.js";
+export { createIcon, type IconOptions, type IconSlug } from "./icon.js";
