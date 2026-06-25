@@ -52,3 +52,23 @@ licence audit (Phase D5).
 | kenney-isometric | Kenney Isometric Tiles | Kenney Vleugels | https://kenney.nl/assets | CC0 | Iso ground/terrain/structure tiles |
 | game-icons | game-icons.net set | Multiple (Lorc, Delapouite, Skoll, Carl Olsen, et al. — see per-author folders) | https://game-icons.net | CC-BY 3.0 | Per-author folders preserved; recolour to tokens for use |
 | lpc-player | LPC universal character sheet | LPC project contributors | https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator | CC-BY-SA 3.0 / GPL 3.0 | Re-colours and derivatives stay CC-BY-SA |
+
+## Selected icons (recoloured derivatives — game-icons.net, CC-BY 3.0)
+
+Curated subset shipped at `packages/client/public/assets/icons/<slug>.svg`,
+recoloured to `currentColor` so CSS controls fill. Original `fill="#fff"`
+on a full-canvas `#000` rect → fill="currentColor", rect dropped. Run
+`pnpm --filter @tarnveil/client process:assets` to regenerate.
+
+| Slug | Source | Author |
+|---|---|---|
+| wood-axe | game-icons/lorc/wood-axe.svg | Lorc |
+| pickaxe | game-icons/lorc/mining.svg | Lorc |
+| fishing-rod | game-icons/delapouite/fishing-pole.svg | Delapouite |
+| cooking-pot | game-icons/delapouite/cooking-pot.svg | Delapouite |
+| wood-pile | game-icons/delapouite/wood-pile.svg | Delapouite |
+| rock | game-icons/lorc/rock.svg | Lorc |
+| shield | game-icons/willdabeast/round-shield.svg | Willdabeast |
+| heart-plus | game-icons/zeromancer/heart-plus.svg | Zeromancer |
+| coins | game-icons/delapouite/two-coins.svg | Delapouite |
+| skills | game-icons/delapouite/skills.svg | Delapouite |

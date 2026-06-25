@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "check:licenses": "tsx scripts/check-licenses.ts"
+    "check:licenses": "tsx scripts/check-licenses.ts",
+    "process:assets": "tsx scripts/process-assets.ts"
   },
   "dependencies": {
     "@fontsource/bricolage-grotesque": "5.2.10",
