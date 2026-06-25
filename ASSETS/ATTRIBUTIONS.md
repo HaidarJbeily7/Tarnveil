@@ -64,4 +64,6 @@ When a folder above is populated, add its row to the ledger table below.
 | Path | Asset | Author | Source URL | License | Notes |
 |---|---|---|---|---|---|
 | kenney-ui | Kenney UI Pack | Kenney Vleugels | https://kenney.nl/assets/ui-pack | CC0 | UI buttons, slots, slider components |
+| kenney-isometric | Kenney Isometric Tiles | Kenney Vleugels | https://kenney.nl/assets | CC0 | Iso ground/terrain/structure tiles |
 | game-icons | game-icons.net set | Multiple (Lorc, Delapouite, Skoll, Carl Olsen, et al. — see per-author folders) | https://game-icons.net | CC-BY 3.0 | Per-author folders preserved; recolour to tokens for use |
+| lpc-player | LPC universal character sheet | LPC project contributors | https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator | CC-BY-SA 3.0 / GPL 3.0 | Re-colours and derivatives stay CC-BY-SA |
