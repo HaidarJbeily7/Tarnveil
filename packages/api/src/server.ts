@@ -3,6 +3,7 @@ import Fastify from "fastify";
 import { GAME } from "@tarnveil/shared/game.config";
 import { getRedis } from "./redis.js";
 import { registerChatRoutes } from "./routes/chat.js";
+import { registerSpectateRoute } from "./routes/spectate.js";
 
 export function buildApp(): ReturnType<typeof Fastify> {
   const app = Fastify({ logger: false });
@@ -15,6 +16,7 @@ export function buildApp(): ReturnType<typeof Fastify> {
   }));
 
   registerChatRoutes(app, redis);
+  registerSpectateRoute(app);
   return app;
 }
 
