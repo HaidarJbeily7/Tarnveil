@@ -2,11 +2,20 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import config from "@colyseus/tools";
 import { Server } from "colyseus";
 import { boot, ColyseusTestServer } from "@colyseus/testing";
+import { inArray } from "drizzle-orm";
+import { characters } from "@tarnveil/shared/db";
 import { ZoneRoom } from "../src/ZoneRoom.js";
 import type { ZoneState } from "../src/state.js";
+import { closeDb, getDb } from "../src/db.js";
 
 const ROOM = "zone";
 const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 100));
+const createdNames: string[] = [];
+function uniqueName(prefix: string): string {
+  const n = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  createdNames.push(n);
+  return n;
+}
 
 describe("ZoneRoom movement", () => {
   let colyseus: ColyseusTestServer;
@@ -23,6 +32,11 @@ describe("ZoneRoom movement", () => {
 
   afterAll(async () => {
     await colyseus.shutdown();
+    if (createdNames.length > 0) {
+      const db = getDb();
+      await db.delete(characters).where(inArray(characters.name, createdNames));
+    }
+    await closeDb();
   });
 
   beforeEach(async () => {
@@ -31,7 +45,7 @@ describe("ZoneRoom movement", () => {
 
   it("accepts a valid adjacent move and updates state", async () => {
     const room = await colyseus.createRoom<ZoneState>(ROOM, {});
-    const client = await colyseus.connectTo(room);
+    const client = await colyseus.connectTo(room, { characterName: uniqueName("move") });
     await room.waitForNextPatch();
 
     client.send("move-to", { col: 2, row: 1 });
@@ -44,7 +58,7 @@ describe("ZoneRoom movement", () => {
 
   it("rejects a move onto a blocked tile", async () => {
     const room = await colyseus.createRoom<ZoneState>(ROOM, {});
-    const client = await colyseus.connectTo(room);
+    const client = await colyseus.connectTo(room, { characterName: uniqueName("move") });
     await room.waitForNextPatch();
 
     // (3,3) is part of the seeded wall.
@@ -58,7 +72,7 @@ describe("ZoneRoom movement", () => {
 
   it("rejects an unreachable (out-of-bounds) move", async () => {
     const room = await colyseus.createRoom<ZoneState>(ROOM, {});
-    const client = await colyseus.connectTo(room);
+    const client = await colyseus.connectTo(room, { characterName: uniqueName("move") });
     await room.waitForNextPatch();
 
     client.send("move-to", { col: 99, row: 99 });
@@ -71,7 +85,7 @@ describe("ZoneRoom movement", () => {
 
   it("rejects a malformed payload", async () => {
     const room = await colyseus.createRoom<ZoneState>(ROOM, {});
-    const client = await colyseus.connectTo(room);
+    const client = await colyseus.connectTo(room, { characterName: uniqueName("move") });
     await room.waitForNextPatch();
 
     client.send("move-to", { col: "no", row: null });

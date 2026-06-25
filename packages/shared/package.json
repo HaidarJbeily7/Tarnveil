@@ -7,11 +7,15 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./game.config": "./game.config.ts"
+    "./game.config": "./game.config.ts",
+    "./db": "./src/db/schema.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.36.4"
   },
   "devDependencies": {
     "@types/node": "22.10.1",

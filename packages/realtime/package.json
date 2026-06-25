@@ -14,11 +14,15 @@
     "@colyseus/tools": "0.17.19",
     "@colyseus/ws-transport": "0.17.13",
     "@tarnveil/shared": "workspace:*",
-    "colyseus": "0.17.10"
+    "colyseus": "0.17.10",
+    "drizzle-orm": "0.36.4",
+    "pg": "8.13.1"
   },
   "devDependencies": {
     "@colyseus/testing": "0.17.11",
     "@types/node": "22.10.1",
+    "@types/pg": "8.11.10",
+    "dotenv": "16.4.7",
     "tsx": "4.19.2",
     "typescript": "5.6.3",
     "vitest": "2.1.8"

@@ -1,14 +1,11 @@
 import { Room, type Client } from "colyseus";
 import { findPath, gridFromMatrix, type Grid } from "@tarnveil/shared";
+import { CharacterStore } from "./CharacterStore.js";
+import { getDb } from "./db.js";
 import { PlayerState, ZoneState } from "./state.js";
 
 const ZONE_SIZE = 10;
-const SPAWN_COL = 1;
-const SPAWN_ROW = 1;
 
-// Server-side zone topology: same shape as the client's Phase 0 grid plus a
-// short wall so we can verify movement rejection. Later phases replace this
-// with per-zone map data loaded from the DB.
 function buildZoneGrid(): Grid {
   const matrix: boolean[][] = [];
   for (let r = 0; r < ZONE_SIZE; r++) {
@@ -32,30 +29,65 @@ function isMoveTo(value: unknown): value is MoveToPayload {
   return Number.isInteger(p["col"]) && Number.isInteger(p["row"]);
 }
 
+interface DebugGivePayload {
+  kind: string;
+  qty: number;
+}
+
+function isDebugGive(value: unknown): value is DebugGivePayload {
+  if (typeof value !== "object" || value === null) return false;
+  const p = value as Record<string, unknown>;
+  return typeof p["kind"] === "string" && Number.isInteger(p["qty"]);
+}
+
+interface JoinOptions {
+  characterName?: string;
+}
+
 export class ZoneRoom extends Room<{ state: ZoneState }> {
   private grid: Grid = buildZoneGrid();
+  private store: CharacterStore | null = null;
+  private clientToChar = new Map<string, string>();
 
   override onCreate(): void {
     this.setState(new ZoneState());
     this.autoDispose = false;
+    this.store = new CharacterStore(getDb());
 
     this.onMessage("move-to", (client, payload) => this.handleMoveTo(client, payload));
+    this.onMessage("debug-give-item", (client, payload) => this.handleDebugGive(client, payload));
   }
 
-  override onJoin(client: Client): void {
+  override async onAuth(_client: Client, options: JoinOptions): Promise<string> {
+    const name = options.characterName;
+    if (typeof name !== "string" || name.length === 0) {
+      throw new Error("characterName required");
+    }
+    return name;
+  }
+
+  override async onJoin(client: Client, _options: JoinOptions, auth: string): Promise<void> {
+    if (this.store === null) throw new Error("store not initialized");
+    const character = await this.store.loadOrCreateByName(auth);
+    this.clientToChar.set(client.sessionId, character.id);
+
     const player = new PlayerState();
     player.id = client.sessionId;
-    player.col = SPAWN_COL;
-    player.row = SPAWN_ROW;
+    player.col = character.col;
+    player.row = character.row;
     this.state.players.set(client.sessionId, player);
   }
 
-  override onLeave(client: Client): void {
+  override async onLeave(client: Client): Promise<void> {
+    const player = this.state.players.get(client.sessionId);
+    const charId = this.clientToChar.get(client.sessionId);
+    if (player !== undefined && charId !== undefined && this.store !== null) {
+      await this.store.savePosition(charId, player.col, player.row, "mainland");
+    }
+    this.clientToChar.delete(client.sessionId);
     this.state.players.delete(client.sessionId);
   }
 
-  // Exposed so tests and Phase 2 logic can reuse the same validator. R1: every
-  // movement decision is made here, never trusted from the client.
   private handleMoveTo(client: Client, payload: unknown): void {
     if (!isMoveTo(payload)) return;
     const player = this.state.players.get(client.sessionId);
@@ -70,5 +102,16 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
     if (path.length < 2) return;
     player.col = payload.col;
     player.row = payload.row;
+  }
+
+  private handleDebugGive(client: Client, payload: unknown): void {
+    if (!isDebugGive(payload)) return;
+    const charId = this.clientToChar.get(client.sessionId);
+    if (charId === undefined || this.store === null) return;
+    // Fire-and-forget: persistence error here surfaces in test failure but
+    // shouldn't crash the room. R5: the store writes the ledger row.
+    void this.store.addItem(charId, payload.kind, payload.qty, "debug-give-item").catch((err) => {
+      console.error("[zone] debug-give failed", err);
+    });
   }
 }
