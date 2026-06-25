@@ -147,6 +147,22 @@ export const marketplaceListings = pgTable(
 
 export type Listing = typeof marketplaceListings.$inferSelect;
 
+export const bridgeListings = pgTable("bridge_listings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sellerId: uuid("seller_id")
+    .notNull()
+    .references(() => characters.id, { onDelete: "cascade" }),
+  goldQty: bigint("gold_qty", { mode: "number" }).notNull(),
+  totalTokenAmount: bigint("total_token_amount", { mode: "number" }).notNull(),
+  status: text("status").notNull().default("pending"),
+  listedAt: timestamp("listed_at", { withTimezone: true }).notNull().defaultNow(),
+  settledTo: uuid("settled_to").references(() => characters.id, { onDelete: "set null" }),
+  settledAt: timestamp("settled_at", { withTimezone: true }),
+  txSignature: text("tx_signature"),
+});
+
+export type BridgeListing = typeof bridgeListings.$inferSelect;
+
 export type Character = typeof characters.$inferSelect;
 export type NewCharacter = typeof characters.$inferInsert;
 export type InventoryRow = typeof characterInventory.$inferSelect;
