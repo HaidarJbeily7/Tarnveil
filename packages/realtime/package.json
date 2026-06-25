@@ -4,12 +4,23 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@tarnveil/shared": "workspace:*"
+    "@colyseus/schema": "4.0.26",
+    "@colyseus/tools": "0.17.19",
+    "@colyseus/ws-transport": "0.17.13",
+    "@tarnveil/shared": "workspace:*",
+    "colyseus": "0.17.10"
   },
   "devDependencies": {
-    "typescript": "5.6.3"
+    "@colyseus/testing": "0.17.11",
+    "@types/node": "22.10.1",
+    "tsx": "4.19.2",
+    "typescript": "5.6.3",
+    "vitest": "2.1.8"
   }
 }
