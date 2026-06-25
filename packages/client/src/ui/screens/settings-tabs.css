@@ -28,14 +28,6 @@
   padding: 2px 6px; border-radius: var(--radius-sm); color: var(--mist);
 }
 
-/* Colour-blind palette swap — applied to <html> when on. Keeps every pair
- * AA per contrast.test.ts. The relevant token shifts:
- *   --lantern → richer ochre   (still > 4.5:1 against --ink)
- *   --rust    → blue-leaning red (still > 3:1 against --mist)
- *   --reed    → cooler green
+/* Colour-blind palette swap lives in theme.css (the only place raw hex is
+ * allowed). See html[data-palette="cb"] there.
  */
-html[data-palette="cb"] {
-  --lantern: #E8A53C;
-  --rust: #D14B5A;
-  --reed: #7BC3C0;
-}
