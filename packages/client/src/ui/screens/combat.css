@@ -1,0 +1,94 @@
+.combat-demo {
+  position: fixed; inset: 0;
+  background: var(--ink); color: var(--mist);
+  padding: var(--space-6);
+  font-family: var(--font-body);
+  overflow: auto;
+}
+.combat-demo__row { display: flex; gap: var(--space-6); flex-wrap: wrap; margin-bottom: var(--space-6); align-items: center; }
+.combat-demo h2 { font-family: var(--font-display); font-size: var(--type-display-sm); margin: 0 0 var(--space-2); }
+
+/* Progress ring */
+.combat-ring {
+  position: relative; width: 64px; height: 64px;
+  --progress: 0;
+}
+.combat-ring__svg { transform: rotate(-90deg); }
+.combat-ring__track { stroke: var(--hairline); fill: none; stroke-width: 6; }
+.combat-ring__fill {
+  stroke: var(--lantern); fill: none; stroke-width: 6;
+  stroke-dasharray: 175.93;
+  stroke-dashoffset: calc(175.93 * (1 - var(--progress)));
+  transition: stroke-dashoffset 0.18s linear;
+}
+.combat-ring__label {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px;
+}
+
+/* Mob health */
+.combat-mob {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  background: color-mix(in srgb, var(--slate) 80%, transparent);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  min-width: 200px;
+}
+.combat-mob__name { display: flex; justify-content: space-between; align-items: baseline; }
+.combat-mob__name b { font-family: var(--font-display); }
+.combat-mob__name span { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--rust); }
+
+/* Float numbers */
+.combat-float {
+  position: absolute;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 24px;
+  pointer-events: none;
+}
+.combat-float--dmg { color: var(--rust); }
+.combat-float--heal { color: var(--reed); }
+@keyframes combat-ripple {
+  0%   { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translate(-50%, -56px) scale(1); opacity: 0; }
+}
+.combat-float[data-animate="true"] {
+  animation: combat-ripple 1s cubic-bezier(0.18, 0.74, 0.3, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .combat-float[data-animate="true"] { animation: none; opacity: 1; }
+}
+
+/* Stage for floats */
+.combat-stage {
+  position: relative; min-height: 100px;
+  border: 1px dashed var(--hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+/* Death screen */
+.combat-death {
+  position: fixed; inset: 0;
+  background: color-mix(in srgb, var(--ink) 88%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--space-6);
+  z-index: var(--z-modals);
+}
+.combat-death .panel {
+  text-align: center; max-width: 400px;
+  display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-6);
+}
+.combat-death__title {
+  font-family: var(--font-display); font-size: var(--type-display-lg);
+  color: var(--rust); margin: 0;
+}
+.combat-death__lead { color: color-mix(in srgb, var(--mist) 80%, transparent); margin: 0; }
+.combat-death__meta {
+  font-family: var(--font-mono); font-size: var(--type-mono-sm);
+  color: color-mix(in srgb, var(--mist) 60%, transparent);
+}
+.combat-death__actions { display: flex; gap: var(--space-2); justify-content: center; }
