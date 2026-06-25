@@ -20,6 +20,7 @@ export class MobState extends Schema {
 }
 
 export class ZoneState extends Schema {
+  @type("number") shard = 0;
   @type({ map: PlayerState }) players = new MapSchema<PlayerState>();
   @type({ map: MobState }) mobs = new MapSchema<MobState>();
 }

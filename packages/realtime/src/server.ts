@@ -13,7 +13,7 @@ const gameServer = new Server({
 });
 
 for (const zoneId of ZONE_IDS) {
-  gameServer.define(zoneId, ZoneRoom);
+  gameServer.define(zoneId, ZoneRoom).filterBy(["shard"]);
 }
 
 gameServer.listen(port).then(() => {

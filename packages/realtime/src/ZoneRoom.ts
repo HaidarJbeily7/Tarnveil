@@ -87,6 +87,7 @@ function isBankPayload(value: unknown): value is BankPayload {
 
 interface JoinOptions {
   characterName?: string;
+  shard?: number;
 }
 
 export type GatherResult =
@@ -116,11 +117,15 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
   public lastGatherResult: GatherResult | null = null;
   public lastAttackResult: AttackResult | null = null;
 
-  override onCreate(): void {
+  override onCreate(options?: JoinOptions): void {
     // roomName is the zone id (server.ts registers one room per ZONES key).
     this.zone = getZoneConfig(this.roomName);
     this.grid = this.zone.buildGrid();
-    this.setState(new ZoneState());
+    const state = new ZoneState();
+    // Shard number flows through createRoom options so matchmaking can route
+    // players to a specific shard slice. Defaults to shard 0 when omitted.
+    state.shard = Number.isInteger(options?.shard) ? (options!.shard as number) : 0;
+    this.setState(state);
     this.autoDispose = false;
     this.store = new CharacterStore(getDb());
 
