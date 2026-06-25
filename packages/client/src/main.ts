@@ -29,6 +29,9 @@ if (ui === "gallery") {
 } else if (ui === "landing") {
   // Phase C1 — marketing landing screen with live spectate chat.
   void import("./ui/screens/landing.js").then((m) => m.mountLanding());
+} else if (ui === "connect") {
+  // Phase C2 — wallet sign-in screen with state machine.
+  void import("./ui/screens/connect.js").then((m) => m.mountConnect());
 } else {
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
