@@ -12,6 +12,9 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@fontsource/bricolage-grotesque": "5.2.10",
+    "@fontsource/hanken-grotesk": "5.2.8",
+    "@fontsource/spline-sans-mono": "5.2.8",
     "@tarnveil/shared": "workspace:*",
     "colyseus.js": "0.16.22",
     "phaser": "3.86.0"

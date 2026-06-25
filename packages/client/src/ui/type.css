@@ -1,0 +1,69 @@
+/* Self-hosted typography. Fontsource packages each ship a CSS file per
+ * weight that references local font files — no external CDN, GDPR-safe.
+ *
+ * Three roles, three families:
+ *   display  Bricolage Grotesque  — wordmark, screen titles, big numbers
+ *   body     Hanken Grotesk       — labels, buttons, chat, default body
+ *   mono     Spline Sans Mono     — gold/timers/stats; tabular figures
+ */
+
+@import "@fontsource/bricolage-grotesque/400.css";
+@import "@fontsource/bricolage-grotesque/600.css";
+@import "@fontsource/bricolage-grotesque/700.css";
+@import "@fontsource/hanken-grotesk/400.css";
+@import "@fontsource/hanken-grotesk/500.css";
+@import "@fontsource/hanken-grotesk/600.css";
+@import "@fontsource/spline-sans-mono/400.css";
+@import "@fontsource/spline-sans-mono/600.css";
+
+:root {
+  /* Families — first the chosen face, then sensible fallbacks. */
+  --font-display: "Bricolage Grotesque", system-ui, -apple-system, sans-serif;
+  --font-body: "Hanken Grotesk", system-ui, -apple-system, sans-serif;
+  --font-mono: "Spline Sans Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Type scale — three sizes per role. */
+  --type-display-lg: 32px;
+  --type-display-md: 24px;
+  --type-display-sm: 20px;
+  --type-body-lg: 16px;
+  --type-body-sm: 14px;
+  --type-mono-lg: 14px;
+  --type-mono-sm: 12px;
+
+  --leading-tight: 1.15;
+  --leading-base: 1.45;
+}
+
+html, body {
+  font-family: var(--font-body);
+  font-size: var(--type-body-sm);
+  line-height: var(--leading-base);
+}
+
+/* Class hooks for components — keeps the markup readable without inline styles. */
+.t-display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+  letter-spacing: -0.01em;
+}
+.t-display--lg { font-size: var(--type-display-lg); }
+.t-display--md { font-size: var(--type-display-md); }
+.t-display--sm { font-size: var(--type-display-sm); }
+
+.t-body { font-family: var(--font-body); }
+.t-body--lg { font-size: var(--type-body-lg); }
+.t-body--sm { font-size: var(--type-body-sm); }
+
+.t-mono,
+.t-num {
+  font-family: var(--font-mono);
+  /* Tabular figures: digits never change width as the value updates. The
+   * spec requires this for every numeric/mono readout (gold, timers, etc).
+   */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.t-mono--lg, .t-num--lg { font-size: var(--type-mono-lg); }
+.t-mono--sm, .t-num--sm { font-size: var(--type-mono-sm); }
