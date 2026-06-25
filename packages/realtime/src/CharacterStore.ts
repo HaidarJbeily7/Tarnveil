@@ -412,6 +412,39 @@ export class CharacterStore {
       .where(eq(characters.id, characterId));
   }
 
+  async addGold(
+    characterId: string,
+    delta: number,
+    reason: string,
+  ): Promise<number> {
+    if (!Number.isInteger(delta) || delta === 0) {
+      throw new Error("gold delta must be a non-zero integer");
+    }
+    return this.db.transaction(async (tx) => {
+      const [row] = await tx
+        .select({ gold: characters.gold })
+        .from(characters)
+        .where(eq(characters.id, characterId))
+        .for("update");
+      if (!row) throw new Error("character not found");
+      const after = row.gold + delta;
+      if (after < 0) throw new Error("gold underflow");
+      await tx
+        .update(characters)
+        .set({ gold: after, updatedAt: sql`now()` })
+        .where(eq(characters.id, characterId));
+      await tx.insert(ledger).values({
+        characterId,
+        kind: "gold",
+        subkind: null,
+        delta,
+        balanceAfter: after,
+        reason,
+      });
+      return after;
+    });
+  }
+
   async countLedgerEntries(characterId: string): Promise<number> {
     const [row] = await this.db
       .select({ n: sql<number>`count(*)::int` })
