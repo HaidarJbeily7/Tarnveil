@@ -67,6 +67,22 @@ function isAttack(value: unknown): value is AttackPayload {
   return typeof (value as Record<string, unknown>)["mobId"] === "string";
 }
 
+interface BankPayload {
+  kind: string;
+  qty: number;
+  page: number;
+}
+
+function isBankPayload(value: unknown): value is BankPayload {
+  if (typeof value !== "object" || value === null) return false;
+  const p = value as Record<string, unknown>;
+  return (
+    typeof p["kind"] === "string" &&
+    Number.isInteger(p["qty"]) &&
+    Number.isInteger(p["page"])
+  );
+}
+
 interface JoinOptions {
   characterName?: string;
 }
@@ -117,6 +133,12 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
     });
     this.onMessage("attack", (client, payload) => {
       void this.handleAttack(client, payload);
+    });
+    this.onMessage("bank-deposit", (client, payload) => {
+      void this.handleBank(client, payload, "deposit");
+    });
+    this.onMessage("bank-withdraw", (client, payload) => {
+      void this.handleBank(client, payload, "withdraw");
     });
 
     this.setSimulationInterval(() => this.tick(), SIM_TICK_MS);
@@ -352,6 +374,29 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
     return "kill";
   }
 
+  private async handleBank(
+    client: Client,
+    payload: unknown,
+    op: "deposit" | "withdraw",
+  ): Promise<void> {
+    if (!isBankPayload(payload)) return;
+    const charId = this.clientToChar.get(client.sessionId);
+    if (charId === undefined || this.store === null) return;
+    try {
+      const result =
+        op === "deposit"
+          ? await this.store.depositToBank(charId, payload.kind, payload.qty, payload.page, "client")
+          : await this.store.withdrawFromBank(charId, payload.kind, payload.qty, payload.page, "client");
+      const inv = this.inventories.get(client.sessionId);
+      if (inv !== undefined) {
+        if (result.inventoryQty <= 0) inv.delete(payload.kind);
+        else inv.set(payload.kind, result.inventoryQty);
+      }
+    } catch (err) {
+      console.error(`[zone] bank-${op} failed`, err);
+    }
+  }
+
   private async killMob(def: MobDef, charId: string, sessionId: string): Promise<void> {
     if (this.store === null) return;
     try {
@@ -391,6 +436,22 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
         const def = this.zone.mobs.find((m) => m.id === id);
         if (def !== undefined) this.spawnMob(def);
         this.mobRespawnAt.delete(id);
+      }
+    }
+
+    // Safe-zone heal: regen 1 HP per tick for players inside the bounds.
+    const safe = this.zone.safeZone;
+    if (safe !== null) {
+      for (const player of this.state.players.values()) {
+        if (
+          player.col >= safe.topLeft.col &&
+          player.col <= safe.bottomRight.col &&
+          player.row >= safe.topLeft.row &&
+          player.row <= safe.bottomRight.row &&
+          player.hp < player.hpMax
+        ) {
+          player.hp = Math.min(player.hpMax, player.hp + 1);
+        }
       }
     }
 

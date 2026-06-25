@@ -52,6 +52,22 @@ export const characterInventory = pgTable(
   }),
 );
 
+export const bankItems = pgTable(
+  "bank_items",
+  {
+    characterId: uuid("character_id")
+      .notNull()
+      .references(() => characters.id, { onDelete: "cascade" }),
+    page: integer("page").notNull().default(0),
+    itemKind: text("item_kind").notNull(),
+    qty: integer("qty").notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.characterId, t.page, t.itemKind] }),
+    byPage: index("bank_items_character_id_page_idx").on(t.characterId, t.page),
+  }),
+);
+
 export const ledger = pgTable(
   "ledger",
   {

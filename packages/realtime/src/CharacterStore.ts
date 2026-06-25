@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import {
+  bankItems,
   characterInventory,
   characterSkills,
   characters,
@@ -181,6 +182,226 @@ export class CharacterStore {
       });
 
       return { xp: afterXp, level: afterLevel };
+    });
+  }
+
+  async getBankPage(characterId: string, page: number): Promise<InventoryItem[]> {
+    const rows = await this.db
+      .select()
+      .from(bankItems)
+      .where(
+        and(eq(bankItems.characterId, characterId), eq(bankItems.page, page)),
+      );
+    return rows.map((r) => ({ kind: r.itemKind, qty: r.qty }));
+  }
+
+  /**
+   * Move `qty` of `kind` from inventory to the given bank page. Runs as a
+   * single transaction so a failure leaves both sides untouched (no dup,
+   * no loss). Writes two ledger rows: an item-out from inventory and an
+   * item-in to the bank.
+   */
+  async depositToBank(
+    characterId: string,
+    kind: string,
+    qty: number,
+    page: number,
+    reason: string,
+  ): Promise<{ inventoryQty: number; bankQty: number }> {
+    if (!Number.isInteger(qty) || qty <= 0) {
+      throw new Error("deposit qty must be a positive integer");
+    }
+    if (!Number.isInteger(page) || page < 0) {
+      throw new Error("page must be a non-negative integer");
+    }
+    return this.db.transaction(async (tx) => {
+      const [invRow] = await tx
+        .select()
+        .from(characterInventory)
+        .where(
+          and(
+            eq(characterInventory.characterId, characterId),
+            eq(characterInventory.itemKind, kind),
+          ),
+        )
+        .for("update");
+      const have = invRow?.qty ?? 0;
+      if (have < qty) throw new Error(`insufficient inventory: have ${have}, need ${qty}`);
+      const invAfter = have - qty;
+      if (invAfter === 0 && invRow) {
+        await tx
+          .delete(characterInventory)
+          .where(
+            and(
+              eq(characterInventory.characterId, characterId),
+              eq(characterInventory.itemKind, kind),
+            ),
+          );
+      } else if (invRow) {
+        await tx
+          .update(characterInventory)
+          .set({ qty: invAfter })
+          .where(
+            and(
+              eq(characterInventory.characterId, characterId),
+              eq(characterInventory.itemKind, kind),
+            ),
+          );
+      }
+
+      const [bankRow] = await tx
+        .select()
+        .from(bankItems)
+        .where(
+          and(
+            eq(bankItems.characterId, characterId),
+            eq(bankItems.page, page),
+            eq(bankItems.itemKind, kind),
+          ),
+        )
+        .for("update");
+      const bankBefore = bankRow?.qty ?? 0;
+      const bankAfter = bankBefore + qty;
+      if (bankRow) {
+        await tx
+          .update(bankItems)
+          .set({ qty: bankAfter })
+          .where(
+            and(
+              eq(bankItems.characterId, characterId),
+              eq(bankItems.page, page),
+              eq(bankItems.itemKind, kind),
+            ),
+          );
+      } else {
+        await tx
+          .insert(bankItems)
+          .values({ characterId, page, itemKind: kind, qty: bankAfter });
+      }
+
+      // Two ledger rows: out of inventory and into bank.
+      await tx.insert(ledger).values([
+        {
+          characterId,
+          kind: "item",
+          subkind: kind,
+          delta: -qty,
+          balanceAfter: invAfter,
+          reason: `bank-deposit:inv:${reason}`,
+        },
+        {
+          characterId,
+          kind: "item",
+          subkind: kind,
+          delta: qty,
+          balanceAfter: bankAfter,
+          reason: `bank-deposit:bank:page=${page}:${reason}`,
+        },
+      ]);
+
+      return { inventoryQty: invAfter, bankQty: bankAfter };
+    });
+  }
+
+  async withdrawFromBank(
+    characterId: string,
+    kind: string,
+    qty: number,
+    page: number,
+    reason: string,
+  ): Promise<{ inventoryQty: number; bankQty: number }> {
+    if (!Number.isInteger(qty) || qty <= 0) {
+      throw new Error("withdraw qty must be a positive integer");
+    }
+    if (!Number.isInteger(page) || page < 0) {
+      throw new Error("page must be a non-negative integer");
+    }
+    return this.db.transaction(async (tx) => {
+      const [bankRow] = await tx
+        .select()
+        .from(bankItems)
+        .where(
+          and(
+            eq(bankItems.characterId, characterId),
+            eq(bankItems.page, page),
+            eq(bankItems.itemKind, kind),
+          ),
+        )
+        .for("update");
+      const have = bankRow?.qty ?? 0;
+      if (have < qty) throw new Error(`insufficient bank: have ${have}, need ${qty}`);
+      const bankAfter = have - qty;
+      if (bankAfter === 0 && bankRow) {
+        await tx
+          .delete(bankItems)
+          .where(
+            and(
+              eq(bankItems.characterId, characterId),
+              eq(bankItems.page, page),
+              eq(bankItems.itemKind, kind),
+            ),
+          );
+      } else if (bankRow) {
+        await tx
+          .update(bankItems)
+          .set({ qty: bankAfter })
+          .where(
+            and(
+              eq(bankItems.characterId, characterId),
+              eq(bankItems.page, page),
+              eq(bankItems.itemKind, kind),
+            ),
+          );
+      }
+
+      const [invRow] = await tx
+        .select()
+        .from(characterInventory)
+        .where(
+          and(
+            eq(characterInventory.characterId, characterId),
+            eq(characterInventory.itemKind, kind),
+          ),
+        )
+        .for("update");
+      const invBefore = invRow?.qty ?? 0;
+      const invAfter = invBefore + qty;
+      if (invRow) {
+        await tx
+          .update(characterInventory)
+          .set({ qty: invAfter })
+          .where(
+            and(
+              eq(characterInventory.characterId, characterId),
+              eq(characterInventory.itemKind, kind),
+            ),
+          );
+      } else {
+        await tx
+          .insert(characterInventory)
+          .values({ characterId, itemKind: kind, qty: invAfter });
+      }
+
+      await tx.insert(ledger).values([
+        {
+          characterId,
+          kind: "item",
+          subkind: kind,
+          delta: -qty,
+          balanceAfter: bankAfter,
+          reason: `bank-withdraw:bank:page=${page}:${reason}`,
+        },
+        {
+          characterId,
+          kind: "item",
+          subkind: kind,
+          delta: qty,
+          balanceAfter: invAfter,
+          reason: `bank-withdraw:inv:${reason}`,
+        },
+      ]);
+
+      return { inventoryQty: invAfter, bankQty: bankAfter };
     });
   }
 
