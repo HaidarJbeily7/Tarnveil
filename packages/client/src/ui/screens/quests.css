@@ -1,0 +1,29 @@
+.quests {
+  position: fixed; inset: 0;
+  background: var(--ink); color: var(--mist);
+  padding: var(--space-6);
+  font-family: var(--font-body);
+  overflow: auto;
+}
+.quests__title { font-family: var(--font-display); font-size: var(--type-display-md); margin: 0 0 var(--space-2); }
+.quests__sub { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-4); }
+.quests__countdown {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  color: var(--lake); font-size: var(--type-body-sm);
+}
+
+.quests__list { display: grid; gap: var(--space-3); max-width: 720px; }
+.quests__row .panel { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); }
+.quests__head { display: flex; justify-content: space-between; align-items: baseline; }
+.quests__name { font-family: var(--font-display); font-size: var(--type-display-sm); color: var(--mist); margin: 0; }
+.quests__progress { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--mist) 65%, transparent); }
+.quests__rewards { display: flex; gap: var(--space-3); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--type-mono-sm); }
+.quests__rewards .gold { color: var(--lantern); }
+.quests__rewards .xp { color: var(--reed); }
+.quests__actions { display: flex; justify-content: flex-end; }
+
+.quests__done {
+  text-align: center;
+  padding: var(--space-6);
+  color: color-mix(in srgb, var(--mist) 70%, transparent);
+}
