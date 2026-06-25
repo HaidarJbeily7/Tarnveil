@@ -63,4 +63,5 @@ When a folder above is populated, add its row to the ledger table below.
 
 | Path | Asset | Author | Source URL | License | Notes |
 |---|---|---|---|---|---|
-| _(empty — no assets pulled yet)_ | | | | | |
+| kenney-ui | Kenney UI Pack | Kenney Vleugels | https://kenney.nl/assets/ui-pack | CC0 | UI buttons, slots, slider components |
+| game-icons | game-icons.net set | Multiple (Lorc, Delapouite, Skoll, Carl Olsen, et al. — see per-author folders) | https://game-icons.net | CC-BY 3.0 | Per-author folders preserved; recolour to tokens for use |
