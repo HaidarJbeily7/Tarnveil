@@ -16,6 +16,11 @@ export interface PanelOptions {
 export function createPanel(opts: PanelOptions = {}): HTMLElement {
   const el = document.createElement("section");
   el.className = "panel";
+  // UI_FIX_SPEC F6 — every panel is discoverable by the visual gate, which
+  // collects [data-panel] rects and asserts they don't overlap. The value
+  // (ariaLabel or "panel") is informational; only the attribute presence
+  // matters for the gate.
+  el.setAttribute("data-panel", opts.ariaLabel ?? "panel");
   if (opts.tone === "elevated") el.classList.add("panel--elevated");
   if (opts.ariaLabel !== undefined) el.setAttribute("aria-label", opts.ariaLabel);
 
