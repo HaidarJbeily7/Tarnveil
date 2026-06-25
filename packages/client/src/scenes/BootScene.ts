@@ -11,14 +11,17 @@ import {
   type TileCoord,
 } from "@tarnveil/shared";
 import { GAME } from "@tarnveil/shared/game.config";
+import { connectZone, type ZoneNetClient } from "../net/zoneClient.js";
 
 const GRID_SIZE = 10;
 const TILE_FILL = 0x2a3a2a;
 const TILE_STROKE = 0x4f6c4f;
-const AVATAR_COLOR = 0xffd166;
+const SELF_COLOR = 0xffd166;
+const REMOTE_COLOR = 0x66ccff;
 const TREE_TRUNK_COLOR = 0x6b4226;
 const TREE_CANOPY_COLOR = 0x3b6b3b;
 const STEP_MS = 180;
+const REMOTE_INTERP_MS = 160;
 
 const TREE_TILE: TileCoord = { col: 5, row: 5 };
 const CHOP_RANGE = 1;
@@ -28,6 +31,7 @@ export interface ChopTestApi {
   attemptChop(): "ok" | "out-of-range";
   setAvatarTile(tile: TileCoord): void;
   treeTile(): TileCoord;
+  isNetworked(): boolean;
 }
 
 export class BootScene extends Phaser.Scene {
@@ -39,6 +43,8 @@ export class BootScene extends Phaser.Scene {
   private canopy!: Phaser.GameObjects.Polygon;
   private moving = false;
   private wood = 0;
+  private net: ZoneNetClient | null = null;
+  private remotes = new Map<string, Phaser.GameObjects.Arc>();
 
   constructor() {
     super("boot");
@@ -61,7 +67,7 @@ export class BootScene extends Phaser.Scene {
 
     this.drawGrid();
     this.drawTree();
-    this.avatar = this.add.circle(0, 0, 10, AVATAR_COLOR).setStrokeStyle(2, 0x000000);
+    this.avatar = this.add.circle(0, 0, 10, SELF_COLOR).setStrokeStyle(2, 0x000000);
     this.placeAvatarAt(this.avatarTile);
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => this.onPointer(pointer));
@@ -76,6 +82,52 @@ export class BootScene extends Phaser.Scene {
 
     this.exposeTestApi();
     this.updateHud();
+
+    // Try multiplayer in the background; if it lands, we switch input to send
+    // server intents and render remote players. If it doesn't, the existing
+    // local mode runs unchanged. `?offline=1` skips the attempt entirely (used
+    // by e2e tests that don't bring up the realtime server).
+    const offline = new URLSearchParams(window.location.search).get("offline");
+    if (offline !== "1") void this.tryConnect();
+  }
+
+  private async tryConnect(): Promise<void> {
+    try {
+      this.net = await connectZone();
+    } catch {
+      return;
+    }
+    this.avatar.setVisible(false);
+    this.net.onPlayerAdd((snap) => this.upsertRemote(snap.id, snap.col, snap.row));
+    this.net.onPlayerChange((snap) => this.upsertRemote(snap.id, snap.col, snap.row));
+    this.net.onPlayerRemove((id) => this.removeRemote(id));
+  }
+
+  private upsertRemote(id: string, col: number, row: number): void {
+    const screen = tileToScreen({ col, row });
+    const x = this.originX + screen.x;
+    const y = this.originY + screen.y;
+    let dot = this.remotes.get(id);
+    if (dot === undefined) {
+      const color = id === this.net?.selfId ? SELF_COLOR : REMOTE_COLOR;
+      dot = this.add.circle(x, y, 10, color).setStrokeStyle(2, 0x000000);
+      this.remotes.set(id, dot);
+      return;
+    }
+    // Interpolation between server snapshots — short tween instead of teleport.
+    this.tweens.add({
+      targets: dot,
+      x,
+      y,
+      duration: REMOTE_INTERP_MS,
+      ease: "Linear",
+    });
+  }
+
+  private removeRemote(id: string): void {
+    const dot = this.remotes.get(id);
+    if (dot !== undefined) dot.destroy();
+    this.remotes.delete(id);
   }
 
   private drawGrid(): void {
@@ -124,15 +176,26 @@ export class BootScene extends Phaser.Scene {
   }
 
   private onPointer(pointer: Phaser.Input.Pointer): void {
-    if (this.moving) return;
     const tile = screenToTile({
       x: pointer.worldX - this.originX,
       y: pointer.worldY - this.originY,
     });
+
+    // Tree chop is still local in Phase 0/1 (server-side chop arrives in 2.2).
     if (tile.col === TREE_TILE.col && tile.row === TREE_TILE.row) {
       this.chop();
       return;
     }
+
+    if (this.net !== null) {
+      // Networked: send intent; the server decides whether it lands.
+      if (!this.grid.isWalkable(tile.col, tile.row)) return;
+      this.net.sendMoveTo(tile.col, tile.row);
+      return;
+    }
+
+    // Local fallback (Phase 0 behavior).
+    if (this.moving) return;
     if (!this.grid.isWalkable(tile.col, tile.row)) return;
     const path = findPath(this.grid, this.avatarTile, tile);
     if (path.length < 2) return;
@@ -191,7 +254,8 @@ export class BootScene extends Phaser.Scene {
         this.placeAvatarAt(this.avatarTile);
       },
       treeTile: () => ({ ...TREE_TILE }),
+      isNetworked: () => this.net !== null,
     };
-    (window as Window & { __tarn?: ChopTestApi }).__tarn = api;
+    (window as unknown as { __tarn?: ChopTestApi }).__tarn = api;
   }
 }

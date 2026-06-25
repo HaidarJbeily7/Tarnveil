@@ -14,7 +14,7 @@ declare global {
 }
 
 test("in-range chop awards +1 wood; out-of-range chop is a no-op", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?offline=1");
   await page.waitForFunction(() => Boolean(window.__tarn));
 
   // Avatar starts at (1,1); tree is at (5,5). Distance 4 — out of range.

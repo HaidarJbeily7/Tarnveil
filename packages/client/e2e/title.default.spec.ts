@@ -9,7 +9,7 @@ test("loads with no console errors and tab title equals GAME.name (default)", as
     if (msg.type() === "error") errors.push(msg.text());
   });
 
-  await page.goto("/");
+  await page.goto("/?offline=1");
   await expect(page).toHaveTitle(DEFAULT_NAME);
   // Splash text on the Phaser canvas can't be DOM-asserted; the canvas existing
   // (and no console errors) is the proxy for "Phaser booted".
