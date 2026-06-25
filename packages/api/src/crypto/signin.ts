@@ -6,6 +6,24 @@ import { randomUUID } from "node:crypto";
 const NONCE_TTL_SECONDS = 300;
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
 
+export type BalanceFn = (pubkey: string) => Promise<number>;
+
+const tokenGate: { minBalance: number; getBalance: BalanceFn } = {
+  minBalance: Number(process.env["GAME_TOKEN_MIN"] ?? 0),
+  // Default provider returns 0; real deployments wire a Solana RPC fetcher
+  // via setTokenGate() before listen(). Tests inject their own.
+  getBalance: async () => 0,
+};
+
+export function setTokenGate(minBalance: number, getBalance: BalanceFn): void {
+  tokenGate.minBalance = Math.max(0, Math.floor(minBalance));
+  tokenGate.getBalance = getBalance;
+}
+
+export function getTokenGate(): { minBalance: number; getBalance: BalanceFn } {
+  return tokenGate;
+}
+
 function nonceKey(nonce: string): string {
   return `wallet:nonce:${nonce}`;
 }
@@ -75,6 +93,20 @@ export async function verifySignIn(
 
   const ok = nacl.sign.detached.verify(messageBytes, sigBytes, pk.toBytes());
   if (!ok) return { ok: false, reason: "bad-signature" };
+
+  // Token gate (6.2). Below threshold → reject without issuing a session
+  // OR burning the nonce, so a wallet that buys in can retry the same flow.
+  if (tokenGate.minBalance > 0) {
+    let balance: number;
+    try {
+      balance = await tokenGate.getBalance(pk.toBase58());
+    } catch {
+      return { ok: false, reason: "balance-check-failed" };
+    }
+    if (balance < tokenGate.minBalance) {
+      return { ok: false, reason: "below-min-balance" };
+    }
+  }
 
   // Burn the nonce so it can't be replayed.
   await redis.del(nonceKey(nonce));
