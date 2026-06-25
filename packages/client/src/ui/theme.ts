@@ -1,4 +1,4 @@
-// Tarnveil design tokens — the single source of visual truth for every UI
+// Design tokens — the single source of visual truth for every UI
 // surface. Every screen file pulls colour / spacing / radius / z-index from
 // here; raw literals outside `theme.*` are blocked by `test/no-raw-hex.test.ts`.
 //
