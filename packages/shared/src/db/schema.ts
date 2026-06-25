@@ -88,6 +88,24 @@ export const ledger = pgTable(
   }),
 );
 
+export const friends = pgTable(
+  "friends",
+  {
+    requesterId: uuid("requester_id")
+      .notNull()
+      .references(() => characters.id, { onDelete: "cascade" }),
+    targetId: uuid("target_id")
+      .notNull()
+      .references(() => characters.id, { onDelete: "cascade" }),
+    status: text("status").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.requesterId, t.targetId] }),
+    byTarget: index("friends_target_status_idx").on(t.targetId, t.status),
+  }),
+);
+
 export type Character = typeof characters.$inferSelect;
 export type NewCharacter = typeof characters.$inferInsert;
 export type InventoryRow = typeof characterInventory.$inferSelect;

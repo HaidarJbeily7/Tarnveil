@@ -2,7 +2,11 @@ import "dotenv/config";
 import Fastify from "fastify";
 import { GAME } from "@tarnveil/shared/game.config";
 import { getRedis } from "./redis.js";
+import { getDb } from "./db.js";
 import { registerChatRoutes } from "./routes/chat.js";
+import { registerDmRoutes } from "./routes/dm.js";
+import { registerFriendsRoutes } from "./routes/friends.js";
+import { registerPresenceRoute } from "./routes/presence.js";
 import { registerSpectateRoute } from "./routes/spectate.js";
 
 export function buildApp(): ReturnType<typeof Fastify> {
@@ -15,8 +19,13 @@ export function buildApp(): ReturnType<typeof Fastify> {
     ok: true,
   }));
 
+  const db = getDb();
+
   registerChatRoutes(app, redis);
   registerSpectateRoute(app);
+  registerFriendsRoutes(app, db);
+  registerPresenceRoute(app, redis);
+  registerDmRoutes(app, redis);
   return app;
 }
 
