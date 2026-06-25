@@ -5,6 +5,12 @@ import { HudScene } from "./scenes/HudScene";
 import { WorldScene } from "./scenes/WorldScene";
 import { wireSettingsPanel } from "./settings";
 
+// Design system — load tokens, typography, and component CSS up front so
+// any DOM chrome (HUD, gallery, future C-phase screens) styles correctly.
+import "./ui/theme.css";
+import "./ui/type.css";
+import "./ui/components/components.css";
+
 document.title = GAME.name;
 // Mirror the configured game name into the HTML chrome so R8 stays clean
 // (the literal lives only in GAME.name).
@@ -12,17 +18,24 @@ const nameEl = document.getElementById("hud-name");
 if (nameEl !== null) nameEl.textContent = GAME.name;
 wireSettingsPanel();
 
-const config: Phaser.Types.Core.GameConfig = {
-  type: Phaser.AUTO,
-  parent: "game",
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: 1280,
-    height: 720,
-  },
-  backgroundColor: "#1a1a1a",
-  scene: [BootScene, WorldScene, HudScene],
-};
+const params = new URLSearchParams(window.location.search);
 
-new Phaser.Game(config);
+if (params.get("ui") === "gallery") {
+  // Phase A3 gallery route — every component primitive rendered at least
+  // once, with a caption. Used by the e2e gallery spec.
+  void import("./ui/gallery.js").then((m) => m.mountGallery());
+} else {
+  const config: Phaser.Types.Core.GameConfig = {
+    type: Phaser.AUTO,
+    parent: "game",
+    scale: {
+      mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+      width: 1280,
+      height: 720,
+    },
+    backgroundColor: "#1a1a1a",
+    scene: [BootScene, WorldScene, HudScene],
+  };
+  new Phaser.Game(config);
+}
