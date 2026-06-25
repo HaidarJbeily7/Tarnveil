@@ -2,13 +2,21 @@ import { and, eq, sql } from "drizzle-orm";
 import {
   bankItems,
   characterInventory,
+  characterQuests,
   characterSkills,
   characters,
   ledger,
   type Character,
   type InventoryRow,
 } from "@tarnveil/shared/db";
-import { ALL_SKILLS, xpToLevel, type SkillId } from "@tarnveil/shared";
+import {
+  ALL_SKILLS,
+  DAILY_QUESTS,
+  DAILY_QUEST_RESET_MS,
+  xpToLevel,
+  type QuestDef,
+  type SkillId,
+} from "@tarnveil/shared";
 import type { DrizzleDB } from "./db.js";
 
 export interface InventoryItem {
@@ -603,6 +611,160 @@ export class CharacterStore {
       });
       return after;
     });
+  }
+
+  /**
+   * Bump a daily-quest's progress by `by`. Resets the row first if its
+   * last_reset_at is more than DAILY_QUEST_RESET_MS old. If the bump pushes
+   * progress >= target AND completed_at is still null, the rewards are paid
+   * in the same transaction (gold + xp + their ledger rows).
+   */
+  async bumpQuestProgress(
+    characterId: string,
+    questId: string,
+    by: number,
+  ): Promise<{
+    progress: number;
+    target: number;
+    completed: boolean;
+    paid: boolean;
+  }> {
+    if (!Number.isInteger(by) || by <= 0) throw new Error("by must be > 0");
+    const def: QuestDef | undefined = DAILY_QUESTS.find((q) => q.id === questId);
+    if (!def) throw new Error(`unknown quest ${questId}`);
+    return this.db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(characterQuests)
+        .where(
+          and(
+            eq(characterQuests.characterId, characterId),
+            eq(characterQuests.questId, questId),
+          ),
+        )
+        .for("update");
+
+      const now = new Date();
+      let progress = existing?.progress ?? 0;
+      let completed = existing?.completedAt ?? null;
+      let lastResetAt = existing?.lastResetAt ?? now;
+
+      // Reset window has elapsed.
+      if (now.getTime() - lastResetAt.getTime() >= DAILY_QUEST_RESET_MS) {
+        progress = 0;
+        completed = null;
+        lastResetAt = now;
+      }
+
+      let paid = false;
+      if (completed === null) {
+        progress = Math.min(def.target, progress + by);
+        if (progress >= def.target) {
+          completed = now;
+          // Pay rewards in-tx so the ledger stays consistent.
+          const [c] = await tx
+            .select({ gold: characters.gold })
+            .from(characters)
+            .where(eq(characters.id, characterId))
+            .for("update");
+          if (!c) throw new Error("character not found");
+          const goldAfter = c.gold + def.rewardGold;
+          await tx
+            .update(characters)
+            .set({ gold: goldAfter, updatedAt: sql`now()` })
+            .where(eq(characters.id, characterId));
+          await tx.insert(ledger).values({
+            characterId,
+            kind: "gold",
+            subkind: null,
+            delta: def.rewardGold,
+            balanceAfter: goldAfter,
+            reason: `quest:${def.id}`,
+          });
+          // XP via the same path as addXp (level cap, ledger).
+          const [sk] = await tx
+            .select()
+            .from(characterSkills)
+            .where(
+              and(
+                eq(characterSkills.characterId, characterId),
+                eq(characterSkills.skillId, def.rewardSkill),
+              ),
+            )
+            .for("update");
+          const xpAfter = (sk?.xp ?? 0) + def.rewardXp;
+          const lvlAfter = xpToLevel(xpAfter);
+          if (sk) {
+            await tx
+              .update(characterSkills)
+              .set({ xp: xpAfter, level: lvlAfter })
+              .where(
+                and(
+                  eq(characterSkills.characterId, characterId),
+                  eq(characterSkills.skillId, def.rewardSkill),
+                ),
+              );
+          } else {
+            await tx.insert(characterSkills).values({
+              characterId,
+              skillId: def.rewardSkill,
+              xp: xpAfter,
+              level: lvlAfter,
+            });
+          }
+          await tx.insert(ledger).values({
+            characterId,
+            kind: "xp",
+            subkind: def.rewardSkill,
+            delta: def.rewardXp,
+            balanceAfter: xpAfter,
+            reason: `quest:${def.id}`,
+          });
+          paid = true;
+        }
+      }
+
+      if (existing) {
+        await tx
+          .update(characterQuests)
+          .set({ progress, completedAt: completed, lastResetAt })
+          .where(
+            and(
+              eq(characterQuests.characterId, characterId),
+              eq(characterQuests.questId, questId),
+            ),
+          );
+      } else {
+        await tx.insert(characterQuests).values({
+          characterId,
+          questId,
+          progress,
+          completedAt: completed,
+          lastResetAt,
+        });
+      }
+
+      return {
+        progress,
+        target: def.target,
+        completed: completed !== null,
+        paid,
+      };
+    });
+  }
+
+  /** Test helper: rewind a quest's last_reset_at so the next bump resets it. */
+  async testForceResetQuest(characterId: string, questId: string): Promise<void> {
+    const ago = new Date(Date.now() - DAILY_QUEST_RESET_MS - 1000);
+    await this.db
+      .update(characterQuests)
+      .set({ lastResetAt: ago })
+      .where(
+        and(
+          eq(characterQuests.characterId, characterId),
+          eq(characterQuests.questId, questId),
+        ),
+      );
   }
 
   async countLedgerEntries(characterId: string): Promise<number> {

@@ -1,6 +1,8 @@
 import { Room, type Client } from "colyseus";
 import {
   findPath,
+  findQuestsForGather,
+  findQuestsForKill,
   inRange,
   tileDistance,
   type Grid,
@@ -327,6 +329,13 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
         XP_PER_GATHER,
         `gather:${node.id}`,
       );
+      // Daily quest progress — fire-and-forget; failure is logged but
+      // doesn't undo the gather.
+      for (const q of findQuestsForGather(node.resource)) {
+        void this.store.bumpQuestProgress(charId, q.id, 1).catch((err) => {
+          console.error("[zone] quest bump failed", err);
+        });
+      }
       this.lastGatherResult = "ok";
       return "ok";
     } catch (err) {
@@ -459,6 +468,11 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
       const inv = this.inventories.get(sessionId);
       if (inv !== undefined) inv.set(def.drop.kind, after);
       await this.store.addXp(charId, "combat", XP_PER_KILL, `kill:${def.id}`);
+      for (const q of findQuestsForKill(def.kind)) {
+        void this.store.bumpQuestProgress(charId, q.id, 1).catch((err) => {
+          console.error("[zone] quest bump failed", err);
+        });
+      }
     } catch (err) {
       console.error("[zone] kill persist failed", err);
     }

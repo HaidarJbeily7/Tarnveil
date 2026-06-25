@@ -106,6 +106,24 @@ export const friends = pgTable(
   }),
 );
 
+export const characterQuests = pgTable(
+  "character_quests",
+  {
+    characterId: uuid("character_id")
+      .notNull()
+      .references(() => characters.id, { onDelete: "cascade" }),
+    questId: text("quest_id").notNull(),
+    progress: integer("progress").notNull().default(0),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    lastResetAt: timestamp("last_reset_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.characterId, t.questId] }),
+  }),
+);
+
 export const marketplaceListings = pgTable(
   "marketplace_listings",
   {

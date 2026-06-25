@@ -3,5 +3,6 @@ export * from "./entities.js";
 export * from "./iso.js";
 export * from "./messages.js";
 export * from "./pathfind.js";
+export * from "./quests.js";
 export * from "./range.js";
 export * from "./skills.js";
