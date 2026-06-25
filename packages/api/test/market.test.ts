@@ -9,6 +9,7 @@ import {
 import { buildApp } from "../src/server.js";
 import { closeDb, getDb } from "../src/db.js";
 import { closeRedis } from "../src/redis.js";
+import { MARKET_LISTING_FEE_GOLD } from "../src/market.js";
 
 const createdNames: string[] = [];
 const createdIds: string[] = [];
@@ -68,7 +69,7 @@ describe("player marketplace", () => {
 
   it("listing escrows the item; buying transfers gold and item atomically", async () => {
     const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const seller = await seedChar(`seller-${stamp}`, 0, { wood: 5 });
+    const seller = await seedChar(`seller-${stamp}`, MARKET_LISTING_FEE_GOLD, { wood: 5 });
     const buyer = await seedChar(`buyer-${stamp}`, 100, {});
 
     const listRes = await app.inject({
@@ -109,6 +110,7 @@ describe("player marketplace", () => {
       .select({ gold: characters.gold })
       .from(characters)
       .where(eq(characters.id, buyer));
+    // Seller paid the listing fee at list time, then received the sale price.
     expect(sellerRow?.gold).toBe(50);
     expect(buyerRow?.gold).toBe(50);
 
@@ -129,11 +131,13 @@ describe("player marketplace", () => {
       .where(sql`${ledger.characterId} = ${buyer} AND ${ledger.kind} = 'gold'`);
     expect(Number(sellerGoldSum)).toBe(50);
     expect(Number(buyerGoldSum)).toBe(50);
+    // Seller's three gold ledger rows: seed (+fee), -fee, +sale.
+    // Buyer's three gold ledger rows: seed (+100), -saleprice.
   });
 
   it("a second buy on the same listing fails with 409 and leaves state untouched", async () => {
     const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const seller = await seedChar(`s-dup-${stamp}`, 0, { wood: 1 });
+    const seller = await seedChar(`s-dup-${stamp}`, MARKET_LISTING_FEE_GOLD, { wood: 1 });
     const buyer1 = await seedChar(`b1-dup-${stamp}`, 100, {});
     const buyer2 = await seedChar(`b2-dup-${stamp}`, 100, {});
 
@@ -174,7 +178,7 @@ describe("player marketplace", () => {
 
   it("insufficient gold rejects the buy with 402, leaving listing active", async () => {
     const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const seller = await seedChar(`s-broke-${stamp}`, 0, { wood: 1 });
+    const seller = await seedChar(`s-broke-${stamp}`, MARKET_LISTING_FEE_GOLD, { wood: 1 });
     const buyer = await seedChar(`b-broke-${stamp}`, 5, {});
 
     const listRes = await app.inject({

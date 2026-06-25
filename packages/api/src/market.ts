@@ -14,6 +14,9 @@ export interface ListInput {
   totalPrice: number;
 }
 
+/** Listing fee in gold deducted from the seller at list time (R-sink). */
+export const MARKET_LISTING_FEE_GOLD = 5;
+
 export async function createListing(
   db: DrizzleDB,
   input: ListInput,
@@ -24,6 +27,30 @@ export async function createListing(
     throw new Error("totalPrice must be > 0");
   }
   return db.transaction(async (tx) => {
+    // Sink: listing fee. Lock the seller's row and deduct before escrow.
+    const [c] = await tx
+      .select({ gold: characters.gold })
+      .from(characters)
+      .where(eq(characters.id, sellerId))
+      .for("update");
+    if (!c) throw new Error("seller not found");
+    if (c.gold < MARKET_LISTING_FEE_GOLD) {
+      throw new Error("insufficient gold for listing fee");
+    }
+    const goldAfter = c.gold - MARKET_LISTING_FEE_GOLD;
+    await tx
+      .update(characters)
+      .set({ gold: goldAfter, updatedAt: sql`now()` })
+      .where(eq(characters.id, sellerId));
+    await tx.insert(ledger).values({
+      characterId: sellerId,
+      kind: "gold",
+      subkind: null,
+      delta: -MARKET_LISTING_FEE_GOLD,
+      balanceAfter: goldAfter,
+      reason: "sink:market-listing-fee",
+    });
+
     const [inv] = await tx
       .select()
       .from(characterInventory)

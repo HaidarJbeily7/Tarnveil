@@ -3,8 +3,10 @@ import Fastify from "fastify";
 import { GAME } from "@tarnveil/shared/game.config";
 import { getRedis } from "./redis.js";
 import { getDb } from "./db.js";
+import { registerAdminRoutes } from "./routes/admin.js";
 import { registerCharacterRoutes } from "./routes/character.js";
 import { registerChatRoutes } from "./routes/chat.js";
+import { registerCosmeticRoute } from "./routes/cosmetic.js";
 import { registerDmRoutes } from "./routes/dm.js";
 import { registerFriendsRoutes } from "./routes/friends.js";
 import { registerMarketRoutes } from "./routes/market.js";
@@ -30,6 +32,8 @@ export function buildApp(): ReturnType<typeof Fastify> {
   registerDmRoutes(app, redis);
   registerCharacterRoutes(app, db);
   registerMarketRoutes(app, db);
+  registerCosmeticRoute(app, db);
+  registerAdminRoutes(app, db);
   return app;
 }
 
