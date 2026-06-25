@@ -5,20 +5,122 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>…</title>
     <style>
-      html, body { margin: 0; padding: 0; background: #1a1a1a; }
-      #game { display: flex; justify-content: center; }
-      #hud {
-        position: fixed; top: 8px; right: 8px;
-        font-family: monospace; color: #fff;
-        background: rgba(0,0,0,0.55);
-        padding: 6px 10px; border-radius: 4px;
-        font-size: 14px;
+      :root {
+        --panel: rgba(20, 24, 28, 0.85);
+        --panel-border: #3a4250;
+        --ink: #e8e2cf;
+        --ink-dim: #8a8e96;
+        --accent: #ffd166;
+        --conn-on: #66cc66;
+        --conn-off: #cc6666;
       }
+      html, body { margin: 0; padding: 0; height: 100%; background: #0e1115; overflow: hidden; color: var(--ink); }
+      body {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        background:
+          radial-gradient(circle at 30% 20%, rgba(80, 100, 130, 0.15), transparent 40%),
+          radial-gradient(circle at 70% 80%, rgba(120, 80, 50, 0.10), transparent 40%),
+          #0e1115;
+      }
+      #game { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+
+      #chrome {
+        position: fixed; inset: 0; pointer-events: none;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        grid-template-columns: 1fr 220px;
+        padding: 10px; gap: 10px;
+      }
+      #chrome > * { pointer-events: auto; }
+
+      #hud-top {
+        grid-column: 1 / 2; grid-row: 1;
+        display: flex; align-items: center; gap: 12px;
+        background: var(--panel); border: 1px solid var(--panel-border); border-radius: 6px;
+        padding: 6px 12px; font-size: 13px; width: fit-content;
+      }
+      #hud-name { color: var(--accent); font-weight: bold; letter-spacing: 0.04em; }
+      .conn-dot {
+        width: 8px; height: 8px; border-radius: 50%; background: var(--ink-dim);
+        box-shadow: 0 0 6px currentColor;
+        display: inline-block;
+      }
+      .conn-dot[data-state="online"] { background: var(--conn-on); color: var(--conn-on); }
+      .conn-dot[data-state="offline"] { background: var(--conn-off); color: var(--conn-off); }
+      #hud-wood-wrap { color: var(--ink-dim); }
+      #hud-wood { color: var(--accent); }
+
+      #hud-inv {
+        grid-column: 2; grid-row: 1 / 3;
+        background: var(--panel); border: 1px solid var(--panel-border); border-radius: 6px;
+        padding: 10px; font-size: 12px;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      #hud-inv h2 {
+        margin: 0; font-size: 11px; letter-spacing: 0.08em; color: var(--ink-dim); text-transform: uppercase;
+      }
+      #hud-inv .grid {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+      }
+      .slot {
+        aspect-ratio: 1; background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--panel-border); border-radius: 4px;
+        position: relative;
+      }
+      .slot[data-item="wood"]::after {
+        content: '🪵'; font-size: 18px;
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      }
+
+      #hud-chat {
+        grid-column: 1 / 2; grid-row: 3;
+        background: var(--panel); border: 1px solid var(--panel-border); border-radius: 6px;
+        padding: 8px; font-size: 12px;
+        max-width: 360px;
+      }
+      #chat-log {
+        list-style: none; margin: 0 0 6px; padding: 0;
+        max-height: 80px; overflow-y: auto;
+        color: var(--ink-dim);
+      }
+      #chat-log li { padding: 2px 0; }
+      #chat-input {
+        width: 100%; box-sizing: border-box;
+        background: rgba(255, 255, 255, 0.04); color: var(--ink);
+        border: 1px solid var(--panel-border); border-radius: 4px;
+        padding: 4px 8px; font-family: inherit; font-size: 12px;
+      }
+      #chat-input:disabled { color: var(--ink-dim); cursor: not-allowed; }
     </style>
   </head>
   <body>
     <div id="game"></div>
-    <div id="hud">Wood: <span id="hud-wood">0</span></div>
+    <div id="chrome">
+      <div id="hud-top">
+        <span id="hud-name"></span>
+        <span class="conn-dot" id="hud-conn" data-state="offline" title="connection status"></span>
+        <span id="hud-wood-wrap">Wood: <span id="hud-wood">0</span></span>
+      </div>
+      <aside id="hud-inv" aria-label="inventory">
+        <h2>Inventory</h2>
+        <div class="grid">
+          <div class="slot" data-item="wood"></div>
+          <div class="slot"></div>
+          <div class="slot"></div>
+          <div class="slot"></div>
+          <div class="slot"></div>
+          <div class="slot"></div>
+          <div class="slot"></div>
+          <div class="slot"></div>
+        </div>
+      </aside>
+      <div id="hud-chat" aria-label="chat">
+        <ul id="chat-log">
+          <li>— world chat coming soon —</li>
+        </ul>
+        <input id="chat-input" placeholder="say something…" disabled />
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

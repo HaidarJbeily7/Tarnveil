@@ -1,16 +1,26 @@
 import Phaser from "phaser";
 import { GAME } from "@tarnveil/shared/game.config";
 import { BootScene } from "./scenes/BootScene";
+import { HudScene } from "./scenes/HudScene";
+import { WorldScene } from "./scenes/WorldScene";
 
 document.title = GAME.name;
+// Mirror the configured game name into the HTML chrome so R8 stays clean
+// (the literal lives only in GAME.name).
+const nameEl = document.getElementById("hud-name");
+if (nameEl !== null) nameEl.textContent = GAME.name;
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: "game",
-  width: 1024,
-  height: 576,
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: 1280,
+    height: 720,
+  },
   backgroundColor: "#1a1a1a",
-  scene: [BootScene],
+  scene: [BootScene, WorldScene, HudScene],
 };
 
 new Phaser.Game(config);
