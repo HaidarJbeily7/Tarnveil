@@ -94,6 +94,7 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
   private inventories = new Map<string, Map<string, number>>();
   private nodeDepletedUntil = new Map<string, number>();
   private mobRespawnAt = new Map<string, number>();
+  private inHandoff = new Set<string>();
   public lastGatherResult: GatherResult | null = null;
   public lastAttackResult: AttackResult | null = null;
 
@@ -158,9 +159,17 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
   override async onLeave(client: Client): Promise<void> {
     const player = this.state.players.get(client.sessionId);
     const charId = this.clientToChar.get(client.sessionId);
-    if (player !== undefined && charId !== undefined && this.store !== null) {
+    // If we've already persisted the target zone/coords during a portal handoff,
+    // skip the standard save so we don't overwrite it with the portal-tile pos.
+    if (
+      player !== undefined &&
+      charId !== undefined &&
+      this.store !== null &&
+      !this.inHandoff.has(client.sessionId)
+    ) {
       await this.store.savePosition(charId, player.col, player.row, this.zone.id);
     }
+    this.inHandoff.delete(client.sessionId);
     this.clientToChar.delete(client.sessionId);
     this.inventories.delete(client.sessionId);
     this.state.players.delete(client.sessionId);
@@ -180,6 +189,50 @@ export class ZoneRoom extends Room<{ state: ZoneState }> {
     if (path.length < 2) return;
     player.col = payload.col;
     player.row = payload.row;
+
+    // Portal step: if the new tile is a portal, persist target coords and
+    // ask the client to re-join the target zone. Inventory/skills/gold are
+    // already DB-backed, so the new room reads them on join (3.2 verify).
+    const portal = this.zone.portals.find(
+      (p) => p.at.col === player.col && p.at.row === player.row,
+    );
+    if (portal !== undefined) {
+      void this.triggerPortal(client, portal);
+    }
+  }
+
+  private async triggerPortal(
+    client: Client,
+    portal: { targetZone: string; spawnAt: TileCoord },
+  ): Promise<void> {
+    const charId = this.clientToChar.get(client.sessionId);
+    if (charId === undefined || this.store === null) return;
+    this.inHandoff.add(client.sessionId);
+    try {
+      await this.store.savePosition(
+        charId,
+        portal.spawnAt.col,
+        portal.spawnAt.row,
+        portal.targetZone,
+      );
+    } catch (err) {
+      this.inHandoff.delete(client.sessionId);
+      console.error("[zone] portal save failed", err);
+      return;
+    }
+    client.send("portal", {
+      targetZone: portal.targetZone,
+      spawnAt: { col: portal.spawnAt.col, row: portal.spawnAt.row },
+    });
+    // Disconnect after a short window so the client has time to read the
+    // message and join the target room.
+    setTimeout(() => {
+      try {
+        client.leave();
+      } catch {
+        // best-effort
+      }
+    }, 100);
   }
 
   private handleDebugGive(client: Client, payload: unknown): void {
