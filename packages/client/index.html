@@ -7,10 +7,18 @@
     <style>
       html, body { margin: 0; padding: 0; background: #1a1a1a; }
       #game { display: flex; justify-content: center; }
+      #hud {
+        position: fixed; top: 8px; right: 8px;
+        font-family: monospace; color: #fff;
+        background: rgba(0,0,0,0.55);
+        padding: 6px 10px; border-radius: 4px;
+        font-size: 14px;
+      }
     </style>
   </head>
   <body>
     <div id="game"></div>
+    <div id="hud">Wood: <span id="hud-wood">0</span></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

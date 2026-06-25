@@ -11,7 +11,7 @@ export default defineConfig({
     {
       name: "default",
       use: { baseURL: `http://localhost:${DEFAULT_PORT}` },
-      testMatch: /title\.default\.spec\.ts/,
+      testMatch: /(?:title\.default|chop)\.spec\.ts/,
     },
     {
       name: "branded",
