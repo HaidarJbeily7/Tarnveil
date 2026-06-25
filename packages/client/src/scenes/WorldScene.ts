@@ -18,8 +18,11 @@ import {
 import { chopBurst, clickRing, floatText, hitFlash } from "../render/effects.js";
 import { createWolf, type MobVisual } from "../render/mobs.js";
 import { PALETTE } from "../render/palette.js";
+import { drawPlaneBase } from "../render/plane.js";
+import { drawScenery } from "../render/scenery.js";
 import { drawTileGrid, makeHoverHighlight, type HoverHighlight } from "../render/tiles.js";
 import { createTree, type TreeVisual } from "../render/trees.js";
+import { getCurrentSettings, type TarnSettings } from "../settings.js";
 
 const GRID_SIZE = 10;
 const STEP_MS = 180;
@@ -75,7 +78,9 @@ export class WorldScene extends Phaser.Scene {
     }
     this.grid = gridFromMatrix(matrix);
 
+    drawPlaneBase(this, { x: this.originX, y: this.originY }, GRID_SIZE);
     this.drawGrid();
+    drawScenery(this, { x: this.originX, y: this.originY });
     this.hover = makeHoverHighlight(this, { x: this.originX, y: this.originY });
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
       const tile = screenToTile({
@@ -100,9 +105,9 @@ export class WorldScene extends Phaser.Scene {
 
     this.exposeTestApi();
     this.updateHud();
-    // Launch HUD as a sibling scene above us. `scene.launch` is idempotent
-    // across hot-reloads in dev.
     if (!this.scene.isActive("hud")) this.scene.launch("hud");
+    this.applyInitialSettings();
+    this.wireSettingsEvents();
     this.setNetState("offline");
     this.events.emit("self-hp", 10, 10);
 
@@ -263,10 +268,12 @@ export class WorldScene extends Phaser.Scene {
 
   private walk(steps: TileCoord[]): void {
     this.moving = true;
+    this.avatar.setWalking(true);
     let i = 0;
     const next = (): void => {
       if (i >= steps.length) {
         this.moving = false;
+        this.avatar.setWalking(false);
         return;
       }
       const target = steps[i++]!;
@@ -297,5 +304,51 @@ export class WorldScene extends Phaser.Scene {
       isNetworked: () => this.net !== null,
     };
     (window as unknown as { __tarn?: ChopTestApi }).__tarn = api;
+  }
+
+  // --- Settings wiring --------------------------------------------------
+
+  private applyInitialSettings(): void {
+    const s = getCurrentSettings();
+    this.applySetting("zoom", s.zoom);
+    this.applySetting("showNameTags", s.showNameTags);
+    this.applySetting("reduceMotion", s.reduceMotion);
+  }
+
+  private wireSettingsEvents(): void {
+    const onSetting = (e: Event): void => {
+      const detail = (e as CustomEvent).detail as { key: keyof TarnSettings; value: TarnSettings[keyof TarnSettings] };
+      this.applySetting(detail.key, detail.value);
+    };
+    const onAction = (e: Event): void => {
+      const detail = (e as CustomEvent).detail as { action: string };
+      if (detail.action === "reset-position") this.resetPosition();
+    };
+    document.addEventListener("tarn:setting", onSetting);
+    document.addEventListener("tarn:action", onAction);
+    // Tear down on scene shutdown so dev hot-reloads don't pile up handlers.
+    this.events.once("shutdown", () => {
+      document.removeEventListener("tarn:setting", onSetting);
+      document.removeEventListener("tarn:action", onAction);
+    });
+  }
+
+  private applySetting<K extends keyof TarnSettings>(key: K, value: TarnSettings[K]): void {
+    if (key === "zoom" && typeof value === "number") {
+      this.cameras.main.setZoom(value);
+    } else if (key === "showNameTags" && typeof value === "boolean") {
+      for (const v of this.remotes.values()) v.setNameTagVisible(value);
+    } else if (key === "reduceMotion" && typeof value === "boolean") {
+      this.avatar.setReduceMotion(value);
+      for (const v of this.remotes.values()) v.setReduceMotion(value);
+    }
+  }
+
+  private resetPosition(): void {
+    const spawn: TileCoord = { col: 1, row: 1 };
+    this.avatarTile = spawn;
+    this.placeAvatarAt(spawn);
+    this.avatar.setWalking(false);
+    if (this.net !== null) this.net.sendMoveTo(spawn.col, spawn.row);
   }
 }

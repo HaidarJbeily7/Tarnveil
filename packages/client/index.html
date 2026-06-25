@@ -7,6 +7,7 @@
     <style>
       :root {
         --panel: rgba(20, 24, 28, 0.85);
+        --panel-solid: #16191e;
         --panel-border: #3a4250;
         --ink: #e8e2cf;
         --ink-dim: #8a8e96;
@@ -50,6 +51,17 @@
       #hud-wood-wrap { color: var(--ink-dim); }
       #hud-wood { color: var(--accent); }
 
+      #hud-gear {
+        position: fixed; top: 10px; right: 240px;
+        background: var(--panel); border: 1px solid var(--panel-border); border-radius: 6px;
+        width: 32px; height: 32px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; color: var(--ink); font-size: 18px;
+        transition: transform 0.2s, color 0.2s;
+        z-index: 5;
+      }
+      #hud-gear:hover { color: var(--accent); transform: rotate(45deg); }
+
       #hud-inv {
         grid-column: 2; grid-row: 1 / 3;
         background: var(--panel); border: 1px solid var(--panel-border); border-radius: 6px;
@@ -91,6 +103,70 @@
         padding: 4px 8px; font-family: inherit; font-size: 12px;
       }
       #chat-input:disabled { color: var(--ink-dim); cursor: not-allowed; }
+
+      /* Settings panel — slides in from the right */
+      #settings-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.2s;
+        z-index: 9;
+      }
+      #settings-overlay.open { opacity: 1; pointer-events: auto; }
+
+      #hud-settings {
+        position: fixed; top: 0; right: 0; bottom: 0;
+        width: 320px; max-width: 90vw;
+        background: var(--panel-solid);
+        border-left: 1px solid var(--panel-border);
+        padding: 18px 20px;
+        transform: translateX(100%);
+        transition: transform 0.22s ease-out;
+        z-index: 10;
+        display: flex; flex-direction: column; gap: 16px;
+        box-shadow: -8px 0 24px rgba(0, 0, 0, 0.4);
+      }
+      #hud-settings.open { transform: translateX(0); }
+      #hud-settings header { display: flex; align-items: center; justify-content: space-between; }
+      #hud-settings h2 { margin: 0; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+      #settings-close {
+        background: transparent; border: none; color: var(--ink-dim); font-size: 22px; cursor: pointer;
+        padding: 0; line-height: 1; transition: color 0.15s;
+      }
+      #settings-close:hover { color: var(--ink); }
+
+      .setting-row {
+        display: flex; flex-direction: column; gap: 6px;
+        font-size: 12px;
+      }
+      .setting-row label {
+        display: flex; align-items: center; gap: 8px;
+        color: var(--ink-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+      }
+      .setting-row .value { color: var(--accent); margin-left: auto; font-variant-numeric: tabular-nums; }
+      .setting-row input[type="range"] {
+        width: 100%; accent-color: var(--accent);
+      }
+      .setting-row input[type="checkbox"] {
+        accent-color: var(--accent); width: 16px; height: 16px;
+      }
+      .setting-row .desc { color: var(--ink-dim); font-size: 11px; }
+      .setting-row button {
+        background: rgba(255, 209, 102, 0.12);
+        border: 1px solid var(--accent);
+        color: var(--accent); padding: 6px 12px; border-radius: 4px;
+        font-family: inherit; font-size: 12px; cursor: pointer;
+        text-transform: uppercase; letter-spacing: 0.06em;
+        align-self: flex-start;
+        transition: background 0.15s;
+      }
+      .setting-row button:hover { background: rgba(255, 209, 102, 0.24); }
+
+      #settings-meta {
+        margin-top: auto; padding-top: 12px;
+        border-top: 1px solid var(--panel-border);
+        color: var(--ink-dim); font-size: 10px;
+      }
     </style>
   </head>
   <body>
@@ -121,6 +197,48 @@
         <input id="chat-input" placeholder="say something…" disabled />
       </div>
     </div>
+    <button id="hud-gear" title="Settings" aria-label="settings">⚙</button>
+    <div id="settings-overlay"></div>
+    <aside id="hud-settings" aria-label="settings">
+      <header>
+        <h2>Settings</h2>
+        <button id="settings-close" aria-label="close">×</button>
+      </header>
+
+      <div class="setting-row">
+        <label>
+          <span>Camera Zoom</span>
+          <span class="value" id="setting-zoom-value">1.00</span>
+        </label>
+        <input id="setting-zoom" type="range" min="0.5" max="2" step="0.05" value="1" />
+        <span class="desc">How close the camera sits to your character.</span>
+      </div>
+
+      <div class="setting-row">
+        <label>
+          <input id="setting-nametags" type="checkbox" checked />
+          <span>Show Name Tags</span>
+        </label>
+        <span class="desc">Toggle the floating labels above other players.</span>
+      </div>
+
+      <div class="setting-row">
+        <label>
+          <input id="setting-motion" type="checkbox" />
+          <span>Reduce Motion</span>
+        </label>
+        <span class="desc">Disables idle and walking animations.</span>
+      </div>
+
+      <div class="setting-row">
+        <button id="setting-reset">Reset Position</button>
+        <span class="desc">Teleport your character back to the spawn tile.</span>
+      </div>
+
+      <div id="settings-meta">
+        Esc to close · settings persist in this browser
+      </div>
+    </aside>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
