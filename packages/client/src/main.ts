@@ -35,6 +35,36 @@ if (ui === "gallery") {
 } else if (ui === "character") {
   // Phase C3 — character select / create.
   void import("./ui/screens/character.js").then((m) => m.mountCharacter());
+} else if (ui === "skills") {
+  // Phase C7 — skills progression panel.
+  void import("./ui/screens/skills.js").then((m) => m.mountSkills());
+} else if (ui === "inventory") {
+  // Phase C5 — inventory grid.
+  void import("./ui/screens/inventory.js").then((m) => m.mountInventory());
+} else if (ui === "chat") {
+  // Phase C10 — multi-channel chat panel.
+  void import("./ui/screens/chat-panel.js").then((m) => m.mountChatPanel());
+} else if (ui === "combat") {
+  // Phase C8 — gathering / combat feedback showcase.
+  void import("./ui/screens/combat.js").then((m) => m.mountCombat());
+} else if (ui === "quests") {
+  // Phase C11 — daily quests panel.
+  void import("./ui/screens/quests.js").then((m) => m.mountQuests());
+} else if (ui === "market") {
+  // Phase C9 — marketplace + gold↔token bridge.
+  void import("./ui/screens/market.js").then((m) => m.mountMarket());
+} else if (ui === "bank") {
+  // Phase C6 — bank + equipment / character sheet.
+  void import("./ui/screens/bank.js").then((m) => m.mountBank());
+} else if (ui === "friends") {
+  // Phase C12 — friends + presence + DMs.
+  void import("./ui/screens/friends.js").then((m) => m.mountFriends());
+} else if (ui === "settings-tabs") {
+  // Phase C14 — settings with accessibility tabs.
+  void import("./ui/screens/settings-tabs.js").then((m) => m.mountSettingsTabs());
+} else if (ui === "loading") {
+  // Phase C15 — branded loading screen + zone transition.
+  void import("./ui/screens/loading.js").then((m) => m.mountLoading());
 } else {
   // Default route — boot the Phaser game and the in-world HUD overlay (C4).
   void import("./ui/in-game-hud.js").then((m) => {
