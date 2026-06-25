@@ -2,6 +2,7 @@ import nacl from "tweetnacl";
 import { PublicKey } from "@solana/web3.js";
 import type Redis from "ioredis";
 import { randomUUID } from "node:crypto";
+import { GAME } from "@tarnveil/shared/game.config";
 
 const NONCE_TTL_SECONDS = 300;
 const SESSION_TTL_SECONDS = 60 * 60 * 12;
@@ -32,13 +33,19 @@ function sessionKey(token: string): string {
   return `wallet:session:${token}`;
 }
 
+function buildSignInMessage(nonce: string): string {
+  // R8: the game name is the only thing that ever changes when we rebrand,
+  // so derive it from GAME instead of hardcoding the literal anywhere.
+  return `${GAME.name} sign-in: ${nonce}`;
+}
+
 export async function issueNonce(redis: Redis): Promise<{
   nonce: string;
   message: string;
   expiresInSeconds: number;
 }> {
   const nonce = randomUUID();
-  const message = `Tarnveil sign-in: ${nonce}`;
+  const message = buildSignInMessage(nonce);
   await redis.set(nonceKey(nonce), "1", "EX", NONCE_TTL_SECONDS);
   return { nonce, message, expiresInSeconds: NONCE_TTL_SECONDS };
 }
@@ -50,7 +57,7 @@ export type VerifySignInResult =
 export interface SignInInput {
   nonce: string;
   pubkey: string;
-  /** base64-encoded ed25519 signature over `Tarnveil sign-in: <nonce>`. */
+  /** base64-encoded ed25519 signature over `${GAME.name} sign-in: <nonce>`. */
   signature: string;
 }
 
@@ -81,7 +88,7 @@ export async function verifySignIn(
   const live = await redis.get(nonceKey(nonce));
   if (live === null) return { ok: false, reason: "nonce-expired-or-used" };
 
-  const message = `Tarnveil sign-in: ${nonce}`;
+  const message = buildSignInMessage(nonce);
   const messageBytes = new TextEncoder().encode(message);
   let sigBytes: Uint8Array;
   try {
