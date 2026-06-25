@@ -1,0 +1,197 @@
+/* Landing screen — the marketing front door. Misty lake vista, wordmark,
+ * tagline, primary CTA, and a live spectate chat feed bottom-left.
+ */
+
+.landing {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 28% 22%, color-mix(in srgb, var(--lake) 26%, transparent), transparent 55%),
+    radial-gradient(circle at 76% 78%, color-mix(in srgb, var(--lantern) 14%, transparent), transparent 45%),
+    radial-gradient(circle at 50% 105%, color-mix(in srgb, var(--reed) 12%, transparent), transparent 50%),
+    var(--ink);
+  color: var(--mist);
+  overflow: hidden;
+  font-family: var(--font-body);
+}
+
+.landing__mist {
+  /* Subtle drifting fog band across the middle */
+  position: absolute;
+  inset: 35% -10% 50% -10%;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--mist) 8%, transparent) 50%,
+    transparent 100%
+  );
+  filter: blur(40px);
+  animation: mist-drift 18s linear infinite;
+  pointer-events: none;
+}
+
+.landing__hero {
+  position: relative;
+  z-index: 1;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-8) var(--space-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  text-align: center;
+  align-items: center;
+}
+
+.landing__wordmark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(48px, 8vw, 96px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--mist);
+  text-shadow: 0 0 24px color-mix(in srgb, var(--lake) 60%, transparent);
+}
+
+.landing__tagline {
+  font-size: var(--type-body-lg);
+  color: color-mix(in srgb, var(--mist) 80%, transparent);
+  max-width: 36ch;
+  margin: 0;
+}
+
+.landing__cta {
+  margin-top: var(--space-3);
+}
+
+.landing__cta .btn {
+  font-size: var(--type-body-lg);
+  padding: var(--space-3) var(--space-6);
+}
+
+.landing__cta .btn::after {
+  content: " →";
+  font-family: var(--font-mono);
+}
+
+.landing__meta {
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-sm);
+  color: color-mix(in srgb, var(--mist) 50%, transparent);
+}
+
+/* Chat feed — bottom-left lakeglass panel */
+.landing__chat {
+  position: fixed;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  width: min(360px, 80vw);
+  max-height: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: var(--z-panels);
+}
+
+.landing__chat .panel {
+  padding: var(--space-3);
+}
+
+.landing__chat-title {
+  font-family: var(--font-display);
+  font-size: var(--type-display-sm);
+  font-weight: 600;
+  color: var(--lantern);
+  margin: 0 0 var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.landing__chat-title::before {
+  /* live dot */
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--reed);
+  box-shadow: 0 0 6px currentColor;
+  color: var(--reed);
+  animation: live-pulse 2.4s ease-in-out infinite;
+}
+
+.chat-feed__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--type-mono-sm);
+}
+
+.chat-feed__item {
+  display: flex;
+  gap: var(--space-2);
+  padding: 2px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.chat-feed__author {
+  color: var(--lake);
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.chat-feed__body {
+  color: var(--mist);
+  word-break: break-word;
+}
+
+.chat-feed__empty {
+  color: color-mix(in srgb, var(--mist) 40%, transparent);
+  font-style: italic;
+}
+
+/* Reveal stagger on load — disabled by theme.css reduced-motion rule. */
+.landing__hero > * {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: landing-rise 0.8s var(--ease-water-ripple) forwards;
+}
+.landing__hero > *:nth-child(1) { animation-delay: 0.05s; }
+.landing__hero > *:nth-child(2) { animation-delay: 0.18s; }
+.landing__hero > *:nth-child(3) { animation-delay: 0.32s; }
+.landing__hero > *:nth-child(4) { animation-delay: 0.46s; }
+
+@keyframes landing-rise {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mist-drift {
+  0%   { transform: translateX(-3%); }
+  100% { transform: translateX(3%); }
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing__hero > * {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+  .landing__mist,
+  .landing__chat-title::before {
+    animation: none;
+  }
+}

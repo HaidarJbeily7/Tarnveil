@@ -20,10 +20,15 @@ wireSettingsPanel();
 
 const params = new URLSearchParams(window.location.search);
 
-if (params.get("ui") === "gallery") {
+const ui = params.get("ui");
+
+if (ui === "gallery") {
   // Phase A3 gallery route — every component primitive rendered at least
   // once, with a caption. Used by the e2e gallery spec.
   void import("./ui/gallery.js").then((m) => m.mountGallery());
+} else if (ui === "landing") {
+  // Phase C1 — marketing landing screen with live spectate chat.
+  void import("./ui/screens/landing.js").then((m) => m.mountLanding());
 } else {
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
