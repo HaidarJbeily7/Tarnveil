@@ -58,17 +58,25 @@ export class WorldScene extends Phaser.Scene {
   private net: ZoneNetClient | null = null;
   private remotes = new Map<string, PlayerVisual>();
   private mobs = new Map<string, { visual: MobVisual; hp: number }>();
+  // Camera zoom math (UI_FIX_2 F3). The user settings zoom is a multiplier
+  // on top of `fitZoom`, so a freshly opened window already shows the map
+  // at ~90% fill regardless of viewport size.
+  private fitZoom = 1.6;
+  private mapPixelWidth = 0;
+  private mapPixelHeight = 0;
 
   constructor() {
     super("world");
   }
 
   preload(): void {
-    // UI_FIX_SPEC F3 — replace the debug primitives with real sprites.
-    // Kenney Isometric (CC0) iso floor + human idle frames.
+    // UI_FIX_SPEC F3 + UI_FIX_2 F4 — every world entity loads from a real
+    // texture; missing textures fall back to a glaring magenta box via the
+    // `sprite()` helper so the asset pipeline can't silently regress.
     this.load.image("world-floor", "/assets/world/floor.png");
     this.load.image("world-player-idle", "/assets/world/player-idle.png");
     this.load.image("world-remote-idle", "/assets/world/remote-idle.png");
+    this.load.image("world-crate", "/assets/world/crate.png");
   }
 
   create(): void {
@@ -104,10 +112,17 @@ export class WorldScene extends Phaser.Scene {
     this.placeAvatarAt(this.avatarTile);
 
     // Camera setup: dark sky background, smooth follow with deadzone so the
-    // avatar drifts a bit before the camera reacts.
+    // avatar drifts a bit before the camera reacts. The fit-zoom math lives
+    // in computeFitZoom() and is re-run on resize so the map keeps filling
+    // the viewport when the window changes shape.
+    this.mapPixelWidth = GRID_SIZE * DEFAULT_ISO.tileWidth;
+    this.mapPixelHeight = GRID_SIZE * DEFAULT_ISO.tileHeight;
     this.cameras.main.setBackgroundColor(PALETTE.sky);
     this.cameras.main.startFollow(this.avatar.container, true, 0.15, 0.15);
     this.cameras.main.setDeadzone(160, 120);
+    this.computeFitZoom();
+    this.scale.on("resize", this.onResize, this);
+    this.events.once("shutdown", () => this.scale.off("resize", this.onResize, this));
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => this.onPointer(pointer));
 
@@ -343,13 +358,31 @@ export class WorldScene extends Phaser.Scene {
 
   private applySetting<K extends keyof TarnSettings>(key: K, value: TarnSettings[K]): void {
     if (key === "zoom" && typeof value === "number") {
-      this.cameras.main.setZoom(value);
+      // User setting is a multiplier — 1.0 means "the auto-fit zoom",
+      // not literal 1× pixels. Otherwise a default install would show
+      // the map as a small island floating in black.
+      this.cameras.main.setZoom(this.fitZoom * value);
     } else if (key === "showNameTags" && typeof value === "boolean") {
       for (const v of this.remotes.values()) v.setNameTagVisible(value);
     } else if (key === "reduceMotion" && typeof value === "boolean") {
       this.avatar.setReduceMotion(value);
       for (const v of this.remotes.values()) v.setReduceMotion(value);
     }
+  }
+
+  private computeFitZoom(): void {
+    const vw = this.scale.width;
+    const vh = this.scale.height;
+    if (vw <= 0 || vh <= 0 || this.mapPixelWidth <= 0 || this.mapPixelHeight <= 0) return;
+    const base = Math.min(vw / this.mapPixelWidth, vh / this.mapPixelHeight) * 0.9;
+    this.fitZoom = Phaser.Math.Clamp(base, 1.4, 3);
+    // Re-apply with the current user multiplier so resize keeps the fit.
+    const userZoom = getCurrentSettings().zoom;
+    this.cameras.main.setZoom(this.fitZoom * userZoom);
+  }
+
+  private onResize(): void {
+    this.computeFitZoom();
   }
 
   private resetPosition(): void {

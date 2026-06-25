@@ -1,132 +1,84 @@
-/* In-world HUD overlay (C4). Edge-anchored panels around a moving world. */
+/* UI_FIX_2 — in-world HUD. Region-anchored, no float, no stub prose. */
 
-#ingame-hud {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: var(--z-hud);
-  font-family: var(--font-body);
-  color: var(--mist);
-}
-
-#ingame-hud > * {
-  pointer-events: auto;
-}
-
-/* --- Vitals: bottom-left --- */
-.ingame-hud__vitals {
-  position: fixed;
-  bottom: var(--space-3);
-  left: var(--space-3);
-  width: min(280px, 28vw);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.ingame-hud__skills {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--hairline);
-}
-
-.ingame-hud__skill-row {
-  display: grid;
-  grid-template-columns: 18px 1fr;
+/* ---------- topLeft: connection pill ---------- */
+.hud-conn-pill {
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--reed);
-}
-.ingame-hud__skill-row .bar {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--slate) 80%, transparent);
+  border: 1px solid var(--hairline);
   color: var(--mist);
-}
-.ingame-hud__skill-row .bar__head {
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-/* --- Hotbar: bottom-center --- */
-.ingame-hud__hotbar {
-  position: fixed;
-  bottom: var(--space-3);
-  left: 50%;
-  transform: translateX(-50%);
-  padding: var(--space-2);
-}
-
-.ingame-hud__hotbar-row {
-  display: grid;
-  grid-template-columns: repeat(10, 48px);
-  gap: var(--space-2);
-}
-
-.ingame-hud__slot-hint {
-  position: absolute;
-  left: 3px;
-  top: 1px;
   font-family: var(--font-mono);
-  font-size: 9px;
-  color: color-mix(in srgb, var(--mist) 55%, transparent);
-}
-
-/* --- Currency: bottom-right --- */
-.ingame-hud__currency {
-  position: fixed;
-  bottom: var(--space-3);
-  right: var(--space-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-width: 180px;
-}
-.ingame-hud__currency-row {
-  display: grid;
-  grid-template-columns: 16px 1fr auto;
-  align-items: center;
-  gap: var(--space-2);
-}
-.ingame-hud__currency-label {
-  color: color-mix(in srgb, var(--mist) 65%, transparent);
   font-size: var(--type-mono-sm);
-  font-family: var(--font-mono);
-  text-transform: uppercase;
   letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
-.ingame-hud__currency-value {
-  text-align: right;
+.hud-conn-pill__dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--rust);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--rust) 60%, transparent);
 }
-.ingame-hud__currency--gold { color: var(--lantern); }
-.ingame-hud__currency--token { color: var(--lake); }
+.hud-conn-pill__dot[data-state="online"] {
+  background: var(--reed);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--reed) 60%, transparent);
+}
+.hud-conn-pill__label { color: color-mix(in srgb, var(--mist) 70%, transparent); }
 
-/* --- Minimap: top-right --- */
-.ingame-hud__minimap {
-  position: fixed;
-  top: var(--space-3);
-  right: var(--space-3);
-  width: 180px;
+/* ---------- topRight: minimap panel ---------- */
+.hud-minimap {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  width: 220px; /* room for the 180×180 canvas + 16px panel padding either side */
 }
-.ingame-hud__minimap-canvas {
+.hud-minimap__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.hud-minimap__title {
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--mist) 65%, transparent);
+}
+.hud-minimap__gear {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  color: color-mix(in srgb, var(--mist) 70%, transparent);
+  width: 24px; height: 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: color var(--motion-fast) ease, border-color var(--motion-fast) ease,
+              transform var(--motion-fast) ease;
+}
+.hud-minimap__gear:hover { color: var(--lantern); border-color: var(--lantern); transform: rotate(30deg); }
+.hud-minimap__gear:focus-visible { outline: 2px solid var(--lake); outline-offset: 2px; }
+
+.hud-minimap__canvas {
   position: relative;
-  aspect-ratio: 1;
-  width: 100%;
+  width: 180px;
+  height: 180px;
+  align-self: center;
   background:
-    linear-gradient(45deg, color-mix(in srgb, var(--reed) 18%, transparent) 0 50%, transparent 50% 100%),
-    color-mix(in srgb, var(--ink) 80%, transparent);
+    repeating-linear-gradient(45deg,
+      color-mix(in srgb, var(--lake) 8%, transparent) 0 8px,
+      transparent 8px 16px),
+    color-mix(in srgb, var(--ink) 85%, transparent);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
-.ingame-hud__minimap-dot {
+.hud-minimap__dot {
   position: absolute;
-  width: 8px;
-  height: 8px;
+  width: 8px; height: 8px;
   border-radius: 50%;
   background: var(--lantern);
   box-shadow: 0 0 6px var(--lantern);
@@ -135,28 +87,195 @@
   top: 10%;
   transition: left var(--motion-base) ease, top var(--motion-base) ease;
 }
-.ingame-hud__minimap-stats {
+.hud-minimap__stats {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
+  align-items: baseline;
   gap: var(--space-2);
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-sm);
+  color: color-mix(in srgb, var(--mist) 75%, transparent);
+}
+.hud-sep {
+  color: color-mix(in srgb, var(--mist) 40%, transparent);
+}
+
+/* ---------- bottomLeft: vitals + skills ---------- */
+.hud-vitals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 280px;
+}
+.hud-vitals__hp .bar__head {
+  /* "Health" left, "10 / 10" right — both mono, tabular. */
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.hud-vitals__hp .bar__value {
+  font-variant-numeric: tabular-nums;
+}
+.hud-vitals__skills {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--hairline);
+}
+.hud-vitals__skill-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hud-vitals__skill-head {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--mist) 75%, transparent);
+}
+.hud-vitals__skill-icon { color: var(--reed); }
+.hud-vitals__skill-name { color: var(--mist); text-transform: none; letter-spacing: 0; }
+.hud-vitals__skill-level {
+  color: color-mix(in srgb, var(--mist) 60%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+.hud-vitals__skill-bar .bar__track { height: 6px; }
+
+/* ---------- bottomCenter: hotbar (horizontal) ---------- */
+.hud-hotbar {
+  padding: 6px;
+}
+.hud-hotbar__row {
+  display: flex;
+  flex-direction: row;        /* horizontal — not column */
+  gap: 6px;
+  height: 60px;
+  align-items: stretch;
+}
+.hud-hotbar__slot {
+  width: 52px;
+  height: 52px;
+  aspect-ratio: auto;         /* override default 1:1 from .slot */
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.hud-hotbar__key {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  color: color-mix(in srgb, var(--mist) 55%, transparent);
+  pointer-events: none;
+}
+
+/* ---------- bottomRight: currency ---------- */
+.hud-currency {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 200px;
+}
+.hud-currency__row {
+  display: grid;
+  grid-template-columns: 16px auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+}
+.hud-currency__label {
   color: color-mix(in srgb, var(--mist) 70%, transparent);
+  font-size: var(--type-mono-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
-
-/* Make sure the existing #hud-wood (used by chop e2e) keeps reading the
- * hotbar's "Wood" slot count. We expose it as a sub-element hooked when
- * the wood slot quantity updates.
- */
-#hud-wood {
-  display: none;
+.hud-currency__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
+.hud-currency--gold { color: var(--lantern); }
+.hud-currency--token { color: var(--lake); }
 
-/* Mobile compaction */
+/* ---------- rightEdge: Chat toggle ---------- */
+.hud-chat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+.hud-chat__toggle {
+  appearance: none;
+  background: color-mix(in srgb, var(--slate) 84%, transparent);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  color: var(--mist);
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+.hud-chat__toggle:hover { border-color: var(--lake); color: var(--lake); }
+.hud-chat__toggle:focus-visible { outline: 2px solid var(--lake); outline-offset: 2px; }
+.hud-chat__panel {
+  width: 260px;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.hud-chat[data-collapsed="true"] .hud-chat__panel { display: none; }
+.hud-chat__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-sm);
+  color: color-mix(in srgb, var(--mist) 80%, transparent);
+  min-height: 80px;
+}
+.hud-chat__input {
+  appearance: none;
+  background: color-mix(in srgb, var(--ink) 60%, transparent);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  color: var(--mist);
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-sm);
+}
+.hud-chat__input:disabled { opacity: 0.6; }
+
+/* ---------- Mobile ---------- */
 @media (max-width: 720px) {
-  .ingame-hud__vitals { width: 60vw; }
-  .ingame-hud__currency { display: none; }
-  .ingame-hud__hotbar-row {
-    grid-template-columns: repeat(5, 40px);
-    grid-template-rows: repeat(2, 40px);
+  .hud-vitals { width: 60vw; }
+  .hud-currency { display: none; }
+  /* 5 slots × 2 rows at mobile so the hotbar fits comfortably without
+   * wrapping into 4 ragged rows. */
+  .hud-hotbar { padding: 5px; }
+  .hud-hotbar__row {
+    display: grid;
+    grid-template-columns: repeat(5, 44px);
+    grid-auto-rows: 44px;
+    height: auto;
+    gap: 4px;
   }
-  .ingame-hud__minimap { width: 100px; }
+  .hud-hotbar__slot { width: 44px; height: 44px; }
+  .hud-minimap { width: 160px; }
+  .hud-minimap__canvas { width: 130px; height: 130px; }
+  .hud-chat__panel { width: 200px; }
 }

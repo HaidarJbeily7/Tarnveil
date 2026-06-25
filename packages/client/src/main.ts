@@ -70,15 +70,22 @@ if (ui === "gallery") {
   void import("./ui/in-game-hud.js").then((m) => {
     const handle = m.mountInGameHud();
     handle.setState({ gold: 0, token: 0, position: { col: 1, row: 1 } });
+    // The HUD now owns the settings entry (#hud-settings-btn inside the
+    // minimap header). Re-run wireSettingsPanel so it binds to that button
+    // after mount.
+    wireSettingsPanel();
   });
+  // Scale.RESIZE so the canvas tracks the viewport — no letterbox, no
+  // dead frame. The camera follows the player and zooms to fit the map
+  // tightly inside the viewport (see WorldScene.create).
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     parent: "game",
     scale: {
-      mode: Phaser.Scale.FIT,
+      mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.CENTER_BOTH,
-      width: 1280,
-      height: 720,
+      width: window.innerWidth,
+      height: window.innerHeight,
     },
     backgroundColor: "#1a1a1a",
     scene: [BootScene, WorldScene, HudScene],

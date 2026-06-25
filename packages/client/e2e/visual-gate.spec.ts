@@ -82,6 +82,20 @@ test.describe("F6: visual acceptance gate", () => {
     await mkdir(ARTIFACTS, { recursive: true });
   });
 
+  // UI_FIX_2 — review the game route at a phone viewport too. The polish
+  // spec only confirms no horizontal overflow; this writes a screenshot
+  // we can actually look at.
+  test("game (mobile 390x844) renders + screenshots", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/?offline=1");
+    await expect(page.locator('[data-testid="hud-layout"]')).toBeVisible();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: resolve(ARTIFACTS, "game-mobile.png"), fullPage: false });
+    // Singletons still hold at mobile.
+    expect(await page.locator('[data-testid="hud-hp"]').count()).toBe(1);
+    expect(await page.locator('[data-testid="hud-gold"]').count()).toBe(1);
+  });
+
   for (const route of ROUTES) {
     test(`${route.id} passes layout invariants + screenshots`, async ({ page }) => {
       await page.goto(route.url);

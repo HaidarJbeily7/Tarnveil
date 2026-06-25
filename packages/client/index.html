@@ -21,19 +21,9 @@
       }
       #game { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
 
-      /* Settings gear + slide-out panel. Survives from the earlier visual
-       * pass; functionally separate from the in-world HUD layout. */
-      #hud-gear {
-        position: fixed; top: 10px; right: 10px;
-        background: rgba(20, 24, 28, 0.85); border: 1px solid #3a4250; border-radius: 6px;
-        width: 32px; height: 32px;
-        display: flex; align-items: center; justify-content: center;
-        cursor: pointer; color: #e8e2cf; font-size: 18px;
-        transition: transform 0.2s, color 0.2s;
-        z-index: 25; /* below modals (z=30) but above hud panels */
-      }
-      #hud-gear:hover { color: #ffd166; transform: rotate(45deg); }
-
+      /* Settings slide-out panel. The settings entry button now lives
+       * inside the in-world HUD (topRight minimap header) and is wired
+       * by src/settings.ts after the HUD mounts. */
       #settings-overlay {
         position: fixed; inset: 0;
         background: rgba(0, 0, 0, 0.4);
@@ -84,7 +74,6 @@
   </head>
   <body>
     <div id="game"></div>
-    <button id="hud-gear" title="Settings" aria-label="settings">⚙</button>
     <div id="settings-overlay"></div>
     <aside id="hud-settings" aria-label="settings">
       <header>

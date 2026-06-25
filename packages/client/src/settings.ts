@@ -68,29 +68,47 @@ export function getCurrentSettings(): TarnSettings {
 }
 
 /**
- * Wire the gear button, panel close button, and form controls. Idempotent —
- * safe to call once on boot; subsequent calls are no-ops.
+ * Open the settings overlay. Exposed so the in-world HUD gear (mounted
+ * asynchronously after HUD render) can trigger it without searching for
+ * the panel itself.
+ */
+export function openSettings(): void {
+  document.getElementById("hud-settings")?.classList.add("open");
+  document.getElementById("settings-overlay")?.classList.add("open");
+}
+
+/**
+ * Wire the panel close button, overlay, form controls, and any settings
+ * trigger present in the DOM at call time (#hud-settings-btn or the
+ * legacy #hud-gear). Idempotent — safe to call on boot AND again after
+ * the HUD mounts the in-panel gear.
  */
 let wired = false;
 export function wireSettingsPanel(): void {
+  // Always re-bind triggers (cheap) so the HUD-mounted gear gets hooked
+  // up even if wireSettingsPanel ran before the HUD was inserted.
+  const triggers = [
+    document.getElementById("hud-settings-btn"),
+    document.getElementById("hud-gear"),
+  ].filter((el): el is HTMLElement => el !== null);
+  for (const t of triggers) {
+    if (t.getAttribute("data-settings-wired") === "1") continue;
+    t.setAttribute("data-settings-wired", "1");
+    t.addEventListener("click", openSettings);
+  }
+
   if (wired) return;
   wired = true;
 
-  const gear = document.getElementById("hud-gear");
   const panel = document.getElementById("hud-settings");
   const close = document.getElementById("settings-close");
   const overlay = document.getElementById("settings-overlay");
-  if (gear === null || panel === null || close === null || overlay === null) return;
+  if (panel === null || close === null || overlay === null) return;
 
-  function open(): void {
-    panel!.classList.add("open");
-    overlay!.classList.add("open");
-  }
   function dismiss(): void {
     panel!.classList.remove("open");
     overlay!.classList.remove("open");
   }
-  gear.addEventListener("click", open);
   close.addEventListener("click", dismiss);
   overlay.addEventListener("click", dismiss);
 

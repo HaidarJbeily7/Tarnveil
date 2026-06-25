@@ -1,16 +1,24 @@
 /**
- * In-world HUD overlay — mounted on the default game route. F1 + F2:
- * every panel attaches into a fixed region from HudLayout; nothing
- * positions itself. The world canvas is interactive in the gaps.
+ * In-world HUD overlay — mounted on the default game route.
  *
- * Layout (per UI_FIX_SPEC):
- *   topLeft       compact resource readout (incl. #hud-wood for the
- *                 chop e2e back-compat) + connection-status dot
- *   topRight      minimap + zone + coords + online count
- *   bottomLeft    vitals (single HP bar) + 5 skill XP rows
- *   bottomCenter  10-slot hotbar
- *   bottomRight   currency cluster (Gold + Token, tabular mono)
- *   rightEdge     collapsible chat strip (collapsed by default)
+ * UI_FIX_2 pass:
+ *   - The "Wood" chip on topLeft is gone. Carried resources live in the
+ *     inventory / hotbar; #hud-wood (used by the chop e2e) is a hidden
+ *     mirror of the wood-pile hotbar slot quantity.
+ *   - The floating "Open the chat panel" sentence is gone. rightEdge is
+ *     a small Chat toggle button only; no prose.
+ *   - The Settings gear lives inside the topRight panel header as its own
+ *     button — it never overlaps the location label.
+ *   - Labels are label-left / value-right with tabular figures.
+ *
+ * Layout regions (provided by HudLayout):
+ *   topLeft       connection-status pill (offline / online)
+ *   topRight      minimap panel — header (location · coords · online + gear),
+ *                 180×180 canvas, no inline collisions
+ *   bottomLeft    vitals (HP) + skill rows (icon + label + L1 + bar below)
+ *   bottomCenter  10-slot horizontal hotbar
+ *   bottomRight   currency cluster (Gold + Token)
+ *   rightEdge     compact Chat toggle button
  */
 
 import { createBar, createIcon, createPanel, createSlot } from "./components/index.js";
@@ -81,36 +89,58 @@ export function mountInGameHud(target: HTMLElement = document.body): HudHandle {
   const layout = createHudLayout(target);
   let state: HudState = { ...DEFAULT_HUD_STATE };
 
-  // --- topLeft: compact resource readout ---
-  const tl = createPanel({ ariaLabel: "resources" });
-  markPanel(tl, "resources");
-  tl.classList.add("hud-resources");
-  const woodRow = document.createElement("div");
-  woodRow.className = "hud-resources__row";
-  const woodIcon = createIcon({ slug: "wood-pile", size: 16, ariaLabel: "wood" });
-  const woodLabel = document.createElement("span");
-  woodLabel.className = "hud-resources__label";
-  woodLabel.textContent = "Wood";
-  const woodValue = document.createElement("span");
-  woodValue.id = "hud-wood";
-  woodValue.className = "t-num t-num--sm";
-  woodValue.textContent = String(state.wood);
+  // --- Hidden mirror for the chop e2e -------------------------------------
+  // #hud-wood used to live in a "Wood: 0" chip — meaningless once carried
+  // resources moved to the hotbar. Keep the element so chop.spec.ts still
+  // reads the count, but make it invisible.
+  const hudWoodMirror = document.createElement("span");
+  hudWoodMirror.id = "hud-wood";
+  hudWoodMirror.setAttribute("aria-hidden", "true");
+  hudWoodMirror.style.position = "absolute";
+  hudWoodMirror.style.left = "-9999px";
+  hudWoodMirror.style.width = "1px";
+  hudWoodMirror.style.height = "1px";
+  hudWoodMirror.style.overflow = "hidden";
+  hudWoodMirror.textContent = String(state.wood);
+  layout.root.appendChild(hudWoodMirror);
+
+  // --- topLeft: connection-status pill only -------------------------------
+  const conn = document.createElement("div");
+  conn.className = "hud-conn-pill";
+  conn.setAttribute("data-panel", "connection");
   const connDot = document.createElement("span");
   connDot.id = "hud-conn";
-  connDot.className = "hud-resources__conn";
+  connDot.className = "hud-conn-pill__dot";
   connDot.setAttribute("data-state", "offline");
-  connDot.setAttribute("title", "connection status");
-  woodRow.appendChild(woodIcon);
-  woodRow.appendChild(woodLabel);
-  woodRow.appendChild(woodValue);
-  woodRow.appendChild(connDot);
-  tl.appendChild(woodRow);
-  layout.attach("topLeft", tl);
+  const connLabel = document.createElement("span");
+  connLabel.className = "hud-conn-pill__label";
+  connLabel.textContent = "Offline";
+  conn.appendChild(connDot);
+  conn.appendChild(connLabel);
+  layout.attach("topLeft", conn);
 
-  // --- topRight: minimap ---
+  // --- topRight: minimap + location row + settings -----------------------
   const minimap = createPanel({ ariaLabel: "minimap" });
   markPanel(minimap, "minimap");
   minimap.classList.add("hud-minimap");
+
+  // Header row: title + Settings button. Title is short so it can't collide.
+  const mmHeader = document.createElement("div");
+  mmHeader.className = "hud-minimap__header";
+  const mmTitle = document.createElement("span");
+  mmTitle.className = "hud-minimap__title";
+  mmTitle.textContent = "Map";
+  const settingsBtn = document.createElement("button");
+  settingsBtn.type = "button";
+  settingsBtn.id = "hud-settings-btn";
+  settingsBtn.className = "hud-minimap__gear";
+  settingsBtn.setAttribute("aria-label", "settings");
+  settingsBtn.title = "Settings";
+  settingsBtn.textContent = "⚙";
+  mmHeader.appendChild(mmTitle);
+  mmHeader.appendChild(settingsBtn);
+  minimap.appendChild(mmHeader);
+
   const map = document.createElement("div");
   map.className = "hud-minimap__canvas";
   map.setAttribute("aria-hidden", "true");
@@ -118,24 +148,27 @@ export function mountInGameHud(target: HTMLElement = document.body): HudHandle {
   dot.className = "hud-minimap__dot";
   map.appendChild(dot);
   minimap.appendChild(map);
+
+  // Location line under the canvas, on its own row. Centered dot separator,
+  // no truncation — gets enough width via the topRight max-width.
   const mmStats = document.createElement("div");
-  mmStats.className = "hud-minimap__stats t-num t-num--sm";
+  mmStats.className = "hud-minimap__stats";
   const zoneEl = document.createElement("span");
   zoneEl.setAttribute("data-testid", "hud-zone");
   zoneEl.textContent = state.zone;
   const coords = document.createElement("span");
+  coords.className = "t-num";
   coords.setAttribute("data-testid", "hud-coords");
-  coords.textContent = `${state.position.col}, ${state.position.row}`;
+  coords.textContent = `(${state.position.col}, ${state.position.row})`;
   const online = document.createElement("span");
+  online.className = "t-num";
   online.setAttribute("data-testid", "hud-online");
   online.textContent = `${state.online} online`;
-  mmStats.appendChild(zoneEl);
-  mmStats.appendChild(coords);
-  mmStats.appendChild(online);
+  appendSeparated(mmStats, [zoneEl, coords, online]);
   minimap.appendChild(mmStats);
   layout.attach("topRight", minimap);
 
-  // --- bottomLeft: vitals (HP + skills) ---
+  // --- bottomLeft: vitals (HP + skills) -----------------------------------
   const vitals = createPanel({ ariaLabel: "vitals and skills" });
   markPanel(vitals, "vitals");
   vitals.classList.add("hud-vitals");
@@ -148,6 +181,7 @@ export function mountInGameHud(target: HTMLElement = document.body): HudHandle {
     showNumbers: true,
   });
   hpBar.root.setAttribute("data-testid", "hud-hp");
+  hpBar.root.classList.add("hud-vitals__hp");
   vitals.appendChild(hpBar.root);
 
   const skillBars: Array<ReturnType<typeof createBar>> = [];
@@ -155,27 +189,38 @@ export function mountInGameHud(target: HTMLElement = document.body): HudHandle {
   skillsWrap.className = "hud-vitals__skills";
   skillsWrap.setAttribute("data-testid", "hud-skills");
   for (const s of state.skills) {
-    const skillRow = document.createElement("div");
-    skillRow.className = "hud-vitals__skill-row";
+    const row = document.createElement("div");
+    row.className = "hud-vitals__skill-row";
+    const head = document.createElement("div");
+    head.className = "hud-vitals__skill-head";
     const icon = createIcon({ slug: skillIcon(s.id), size: 14, ariaLabel: s.label });
     icon.classList.add("hud-vitals__skill-icon");
+    const name = document.createElement("span");
+    name.className = "hud-vitals__skill-name";
+    name.textContent = s.label;
+    const lvl = document.createElement("span");
+    lvl.className = "hud-vitals__skill-level t-num";
+    lvl.textContent = `L${s.level}`;
+    head.appendChild(icon);
+    head.appendChild(name);
+    head.appendChild(lvl);
     const bar = createBar({
       value: s.xp,
       max: s.xpNext,
       variant: "reed",
       showNumbers: false,
-      label: `${s.label} L${s.level}`,
     });
     bar.root.setAttribute("data-skill", s.id);
+    bar.root.classList.add("hud-vitals__skill-bar");
     skillBars.push(bar);
-    skillRow.appendChild(icon);
-    skillRow.appendChild(bar.root);
-    skillsWrap.appendChild(skillRow);
+    row.appendChild(head);
+    row.appendChild(bar.root);
+    skillsWrap.appendChild(row);
   }
   vitals.appendChild(skillsWrap);
   layout.attach("bottomLeft", vitals);
 
-  // --- bottomCenter: hotbar ---
+  // --- bottomCenter: hotbar (horizontal row) -----------------------------
   const hotbar = createPanel({ ariaLabel: "hotbar" });
   markPanel(hotbar, "hotbar");
   hotbar.classList.add("hud-hotbar");
@@ -192,22 +237,23 @@ export function mountInGameHud(target: HTMLElement = document.body): HudHandle {
     };
     if (slot?.qty !== undefined) slotOpts.qty = slot.qty;
     const cell = createSlot(slotOpts);
+    cell.classList.add("hud-hotbar__slot");
     cell.setAttribute("data-hotbar-index", String(i));
     if (slot !== null) {
       const icon = createIcon({ slug: slot.slug, size: 24, ariaLabel: slot.label });
       cell.insertBefore(icon, cell.firstChild);
     }
-    const hint = document.createElement("span");
-    hint.className = "hud-hotbar__hint";
-    hint.textContent = String((i + 1) % 10);
-    cell.appendChild(hint);
+    const key = document.createElement("span");
+    key.className = "hud-hotbar__key";
+    key.textContent = String((i + 1) % 10);
+    cell.appendChild(key);
     hotbarInner.appendChild(cell);
     hotbarSlots.push(cell);
   }
   hotbar.appendChild(hotbarInner);
   layout.attach("bottomCenter", hotbar);
 
-  // --- bottomRight: currency ---
+  // --- bottomRight: currency ----------------------------------------------
   const currency = createPanel({ ariaLabel: "currency" });
   markPanel(currency, "currency");
   currency.classList.add("hud-currency");
@@ -221,30 +267,43 @@ export function mountInGameHud(target: HTMLElement = document.body): HudHandle {
   currency.appendChild(tokenRow.row);
   layout.attach("bottomRight", currency);
 
-  // --- rightEdge: collapsible chat strip (collapsed by default) ---
-  const chat = createPanel({ ariaLabel: "chat" });
-  markPanel(chat, "chat");
-  chat.classList.add("hud-chat");
-  chat.setAttribute("data-collapsed", "true");
+  // --- rightEdge: tiny Chat toggle button ---------------------------------
+  // No floating prose. The button opens a slim panel; collapsed it's just
+  // a control. data-panel is not set on the wrapper so the visual gate
+  // sees the button-only state as zero panels in this region.
+  const chatWrap = document.createElement("div");
+  chatWrap.className = "hud-chat";
+  chatWrap.setAttribute("data-collapsed", "true");
+
   const chatToggle = document.createElement("button");
   chatToggle.type = "button";
   chatToggle.className = "hud-chat__toggle";
   chatToggle.setAttribute("aria-expanded", "false");
-  chatToggle.innerHTML = '<span>Chat</span><span class="hud-chat__chev" aria-hidden="true">▾</span>';
+  chatToggle.setAttribute("aria-label", "open chat");
+  chatToggle.textContent = "Chat";
+  chatWrap.appendChild(chatToggle);
+
+  const chatPanel = createPanel({ ariaLabel: "chat panel" });
+  markPanel(chatPanel, "chat");
+  chatPanel.classList.add("hud-chat__panel");
+  const chatList = document.createElement("ul");
+  chatList.className = "hud-chat__list";
+  chatList.setAttribute("aria-live", "polite");
+  chatPanel.appendChild(chatList);
+  const chatInput = document.createElement("input");
+  chatInput.type = "text";
+  chatInput.className = "hud-chat__input";
+  chatInput.placeholder = "Press Enter to send";
+  chatInput.disabled = true;
+  chatPanel.appendChild(chatInput);
+  chatWrap.appendChild(chatPanel);
+
   chatToggle.addEventListener("click", () => {
-    const collapsed = chat.getAttribute("data-collapsed") === "true";
-    chat.setAttribute("data-collapsed", collapsed ? "false" : "true");
+    const collapsed = chatWrap.getAttribute("data-collapsed") === "true";
+    chatWrap.setAttribute("data-collapsed", collapsed ? "false" : "true");
     chatToggle.setAttribute("aria-expanded", collapsed ? "true" : "false");
   });
-  chat.appendChild(chatToggle);
-  const chatBody = document.createElement("div");
-  chatBody.className = "hud-chat__body";
-  const chatHint = document.createElement("p");
-  chatHint.className = "hud-chat__hint";
-  chatHint.textContent = "Open the chat panel for the full feed.";
-  chatBody.appendChild(chatHint);
-  chat.appendChild(chatBody);
-  layout.attach("rightEdge", chat);
+  layout.attach("rightEdge", chatWrap);
 
   function setState(next: Partial<HudState>): void {
     state = { ...state, ...next };
@@ -257,13 +316,13 @@ export function mountInGameHud(target: HTMLElement = document.body): HudHandle {
     if (next.online !== undefined) online.textContent = `${state.online} online`;
     if (next.zone !== undefined) zoneEl.textContent = state.zone;
     if (next.position !== undefined) {
-      coords.textContent = `${state.position.col}, ${state.position.row}`;
+      coords.textContent = `(${state.position.col}, ${state.position.row})`;
       const px = (state.position.col / 10) * 100;
       const py = (state.position.row / 10) * 100;
       dot.style.left = `${px}%`;
       dot.style.top = `${py}%`;
     }
-    if (next.wood !== undefined) woodValue.textContent = String(state.wood);
+    if (next.wood !== undefined) hudWoodMirror.textContent = String(state.wood);
     if (next.hotbar !== undefined) {
       next.hotbar.forEach((slot, i) => {
         const cell = hotbarSlots[i];
@@ -287,6 +346,19 @@ export function mountInGameHud(target: HTMLElement = document.body): HudHandle {
       layout.destroy();
     },
   };
+}
+
+function appendSeparated(parent: HTMLElement, items: HTMLElement[]): void {
+  items.forEach((node, i) => {
+    if (i > 0) {
+      const sep = document.createElement("span");
+      sep.className = "hud-sep";
+      sep.setAttribute("aria-hidden", "true");
+      sep.textContent = "·";
+      parent.appendChild(sep);
+    }
+    parent.appendChild(node);
+  });
 }
 
 function makeCurrencyRow(

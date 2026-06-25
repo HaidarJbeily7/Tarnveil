@@ -65,6 +65,9 @@ const WORLD_TEXTURES: ReadonlyArray<WorldTexture> = [
   { dst: "player-idle.png", source: "Characters/Human/Human_0_Idle0.png" },
   { dst: "player-run.png", source: "Characters/Human/Human_0_Run0.png" },
   { dst: "remote-idle.png", source: "Characters/Human/Human_1_Idle0.png" },
+  // UI_FIX_2 F4 — scenery rocks/boulders now use the iso crate sprite
+  // instead of debug ellipses.
+  { dst: "crate.png", source: "Isometric/crate_E.png" },
 ];
 
 async function run(): Promise<void> {
