@@ -22,7 +22,9 @@ import { fileURLToPath } from "node:url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, "..", "..", "..");
 const GAME_ICONS = resolve(REPO_ROOT, "ASSETS", "raw", "game-icons");
+const KENNEY_ISO = resolve(REPO_ROOT, "ASSETS", "raw", "kenney-isometric");
 const OUT_DIR = resolve(REPO_ROOT, "packages", "client", "public", "assets", "icons");
+const WORLD_OUT = resolve(REPO_ROOT, "packages", "client", "public", "assets", "world");
 
 export interface IconPick {
   /** Slug used as the output filename (and the Icon component key). */
@@ -55,6 +57,16 @@ export function normaliseIconSvg(svg: string): string {
     .replace(/fill="#FFFFFF"/g, 'fill="currentColor"');
 }
 
+interface WorldTexture { dst: string; source: string; }
+
+const WORLD_TEXTURES: ReadonlyArray<WorldTexture> = [
+  { dst: "floor.png", source: "Isometric/floor_E.png" },
+  { dst: "floor-alt.png", source: "Isometric/floorHalf_E.png" },
+  { dst: "player-idle.png", source: "Characters/Human/Human_0_Idle0.png" },
+  { dst: "player-run.png", source: "Characters/Human/Human_0_Run0.png" },
+  { dst: "remote-idle.png", source: "Characters/Human/Human_1_Idle0.png" },
+];
+
 async function run(): Promise<void> {
   await mkdir(OUT_DIR, { recursive: true });
   for (const icon of ICONS) {
@@ -66,6 +78,16 @@ async function run(): Promise<void> {
     console.log(`✓ ${icon.slug}  ← ${icon.source}  (CC-BY ${icon.author})`);
   }
   console.log(`\nWrote ${ICONS.length} icons to ${OUT_DIR}`);
+
+  await mkdir(WORLD_OUT, { recursive: true });
+  for (const t of WORLD_TEXTURES) {
+    const src = resolve(KENNEY_ISO, t.source);
+    const dst = resolve(WORLD_OUT, t.dst);
+    const bytes = await readFile(src);
+    await writeFile(dst, bytes);
+    console.log(`✓ world/${t.dst}  ← kenney-isometric/${t.source}  (CC0 Kenney)`);
+  }
+  console.log(`\nWrote ${WORLD_TEXTURES.length} world textures to ${WORLD_OUT}`);
 }
 
 // CLI entrypoint guard.

@@ -63,6 +63,14 @@ export class WorldScene extends Phaser.Scene {
     super("world");
   }
 
+  preload(): void {
+    // UI_FIX_SPEC F3 — replace the debug primitives with real sprites.
+    // Kenney Isometric (CC0) iso floor + human idle frames.
+    this.load.image("world-floor", "/assets/world/floor.png");
+    this.load.image("world-player-idle", "/assets/world/player-idle.png");
+    this.load.image("world-remote-idle", "/assets/world/remote-idle.png");
+  }
+
   create(): void {
     const { width, height } = this.scale;
     this.originX = width / 2;
