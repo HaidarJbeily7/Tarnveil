@@ -10,14 +10,27 @@ export interface TileGridOpts {
 }
 
 /**
- * F3 — render the iso grid from Kenney's CC0 floor texture. The texture
- * is registered in WorldScene.preload as "world-floor"; if it failed to
- * load we fall back to a flat-fill diamond (drawTileGridFallback) so the
- * scene still functions.
+ * Render the iso grid from Kenney's CC0 floor textures.
  *
- * Walkable tiles get the floor texture. Unwalkable tiles tint slightly
- * red so a blocked square reads at a glance.
+ * Geometry of the source images:
+ *   - floor.png / floor-alt.png are 256×512 PNGs.
+ *   - The visible diamond sits in the BOTTOM 1/4 of the frame; the rest is
+ *     transparent space reserved for stacking 3D blocks on top.
+ *   - The diamond itself is 256 wide × 128 tall — exactly the 4:1 ratio
+ *     that matches TILE_WIDTH=64 / TILE_HEIGHT=32 scaled by 0.25.
+ *
+ * So at scale 0.25 the diamond renders 64×32 (one tile). The origin (0.5,
+ * 0.875) lands the visible diamond's centre exactly on the placement point
+ * — that's the tile centre returned by `worldFromTile`. Anything else
+ * (0.5,0.5 with a y-fudge, etc.) drifts and produces visible seams.
+ *
+ * Walkable tiles render the primary floor; non-walkable tiles get a slight
+ * red tint so a blocked square reads at a glance. With `opts.checker` we
+ * alternate floor-alt to break up the grid visually.
  */
+const TILE_TEXTURE_SCALE = 0.25;
+const TILE_ORIGIN_Y = 0.875;
+
 export function drawTileGrid(
   scene: Phaser.Scene,
   origin: IsoOrigin,
@@ -25,7 +38,8 @@ export function drawTileGrid(
   opts: TileGridOpts,
 ): Phaser.GameObjects.Container {
   const layer = scene.add.container(0, 0);
-  const hasTexture = scene.textures.exists("world-floor");
+  const hasFloor = scene.textures.exists("world-floor");
+  const hasAlt = scene.textures.exists("world-floor-alt");
 
   const coords: TileCoord[] = [];
   for (let row = 0; row < opts.size; row++) {
@@ -33,7 +47,7 @@ export function drawTileGrid(
   }
   coords.sort((a, b) => renderOrder(a) - renderOrder(b));
 
-  if (!hasTexture) {
+  if (!hasFloor) {
     layer.add(drawTileGridFallback(scene, origin, grid, opts, coords));
     return layer;
   }
@@ -41,10 +55,11 @@ export function drawTileGrid(
   for (const tile of coords) {
     const { x, y } = worldFromTile(origin, tile);
     const walkable = grid.isWalkable(tile.col, tile.row);
-    const img = scene.add.image(x, y, "world-floor");
-    img.setScale(0.25);
-    img.setOrigin(0.5, 0.5);
-    img.setY(y - 4);
+    const checker = opts.checker !== false && ((tile.col + tile.row) & 1) === 1;
+    const key = checker && hasAlt ? "world-floor-alt" : "world-floor";
+    const img = scene.add.image(x, y, key);
+    img.setOrigin(0.5, TILE_ORIGIN_Y);
+    img.setScale(TILE_TEXTURE_SCALE);
     if (!walkable) img.setTint(0xc26a5a);
     layer.add(img);
   }

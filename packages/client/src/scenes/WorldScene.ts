@@ -18,7 +18,6 @@ import {
 import { chopBurst, clickRing, floatText, hitFlash } from "../render/effects.js";
 import { createWolf, type MobVisual } from "../render/mobs.js";
 import { PALETTE } from "../render/palette.js";
-import { drawPlaneBase } from "../render/plane.js";
 import { drawScenery } from "../render/scenery.js";
 import { drawTileGrid, makeHoverHighlight, type HoverHighlight } from "../render/tiles.js";
 import { createTree, type TreeVisual } from "../render/trees.js";
@@ -31,13 +30,36 @@ const REMOTE_INTERP_MS = 160;
 const TREE_TILE: TileCoord = { col: 5, row: 5 };
 const CHOP_RANGE = 1;
 
+export type KeyboardDir = "up" | "down" | "left" | "right";
+
 export interface ChopTestApi {
   getWood(): number;
   attemptChop(): "ok" | "out-of-range";
   setAvatarTile(tile: TileCoord): void;
   treeTile(): TileCoord;
   isNetworked(): boolean;
+  getAvatarTile(): TileCoord;
+  keyboardStep(dir: KeyboardDir): "ok" | "blocked" | "moving";
 }
+
+/**
+ * Screen-aligned 4-directional movement on the iso grid. With the standard
+ * iso projection where (col, row) maps to ((col-row)*halfW, (col+row)*halfH):
+ *
+ *   up:    col-1, row-1  → pure up   on screen
+ *   down:  col+1, row+1  → pure down on screen
+ *   left:  col-1, row+1  → pure left on screen
+ *   right: col+1, row-1  → pure right on screen
+ *
+ * So WASD and arrow keys feel intuitive to a player looking at the canvas,
+ * not "isometric tile cardinal" (which would walk diagonally on screen).
+ */
+const KEY_DELTAS: Record<KeyboardDir, { col: number; row: number }> = {
+  up:    { col: -1, row: -1 },
+  down:  { col:  1, row:  1 },
+  left:  { col: -1, row:  1 },
+  right: { col:  1, row: -1 },
+};
 
 /**
  * The actual game world. Was BootScene through Phase 7; promoted to its own
@@ -64,6 +86,19 @@ export class WorldScene extends Phaser.Scene {
   private fitZoom = 1.6;
   private mapPixelWidth = 0;
   private mapPixelHeight = 0;
+  // Keyboard: WASD + arrow keys for screen-aligned 4-directional movement.
+  // A key held past the end of a step triggers another step automatically
+  // (see Phaser update loop in continueKeyboardWalk).
+  private keys: {
+    W: Phaser.Input.Keyboard.Key;
+    A: Phaser.Input.Keyboard.Key;
+    S: Phaser.Input.Keyboard.Key;
+    D: Phaser.Input.Keyboard.Key;
+    Up: Phaser.Input.Keyboard.Key;
+    Down: Phaser.Input.Keyboard.Key;
+    Left: Phaser.Input.Keyboard.Key;
+    Right: Phaser.Input.Keyboard.Key;
+  } | null = null;
 
   constructor() {
     super("world");
@@ -74,6 +109,7 @@ export class WorldScene extends Phaser.Scene {
     // texture; missing textures fall back to a glaring magenta box via the
     // `sprite()` helper so the asset pipeline can't silently regress.
     this.load.image("world-floor", "/assets/world/floor.png");
+    this.load.image("world-floor-alt", "/assets/world/floor-alt.png");
     this.load.image("world-player-idle", "/assets/world/player-idle.png");
     this.load.image("world-remote-idle", "/assets/world/remote-idle.png");
     this.load.image("world-crate", "/assets/world/crate.png");
@@ -94,7 +130,9 @@ export class WorldScene extends Phaser.Scene {
     }
     this.grid = gridFromMatrix(matrix);
 
-    drawPlaneBase(this, { x: this.originX, y: this.originY }, GRID_SIZE);
+    // The Kenney iso tiles render their own clean diamond edges — no more
+    // procedural dirt apron beneath. drawPlaneBase still exists for the
+    // graphics fallback path but isn't called when textures load.
     this.drawGrid();
     drawScenery(this, { x: this.originX, y: this.originY });
     this.hover = makeHoverHighlight(this, { x: this.originX, y: this.originY });
@@ -125,6 +163,7 @@ export class WorldScene extends Phaser.Scene {
     this.events.once("shutdown", () => this.scale.off("resize", this.onResize, this));
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => this.onPointer(pointer));
+    this.setupKeyboard();
 
     this.exposeTestApi();
     this.updateHud();
@@ -325,8 +364,72 @@ export class WorldScene extends Phaser.Scene {
       },
       treeTile: () => ({ ...TREE_TILE }),
       isNetworked: () => this.net !== null,
+      getAvatarTile: () => ({ ...this.avatarTile }),
+      keyboardStep: (dir) => this.keyboardStep(dir),
     };
     (window as unknown as { __tarn?: ChopTestApi }).__tarn = api;
+  }
+
+  // --- Keyboard movement ------------------------------------------------
+
+  private setupKeyboard(): void {
+    if (this.input.keyboard === null) return;
+    const K = Phaser.Input.Keyboard.KeyCodes;
+    const kb = this.input.keyboard;
+    this.keys = {
+      W:     kb.addKey(K.W),
+      A:     kb.addKey(K.A),
+      S:     kb.addKey(K.S),
+      D:     kb.addKey(K.D),
+      Up:    kb.addKey(K.UP),
+      Down:  kb.addKey(K.DOWN),
+      Left:  kb.addKey(K.LEFT),
+      Right: kb.addKey(K.RIGHT),
+    };
+    // Stop the browser from scrolling the page when arrows are pressed.
+    kb.addCapture([K.UP, K.DOWN, K.LEFT, K.RIGHT, K.W, K.A, K.S, K.D]);
+  }
+
+  update(): void {
+    if (this.moving || this.keys === null) return;
+    const dir = this.heldDirection();
+    if (dir !== null) this.keyboardStep(dir);
+  }
+
+  private heldDirection(): KeyboardDir | null {
+    const k = this.keys;
+    if (k === null) return null;
+    if (k.W.isDown || k.Up.isDown) return "up";
+    if (k.S.isDown || k.Down.isDown) return "down";
+    if (k.A.isDown || k.Left.isDown) return "left";
+    if (k.D.isDown || k.Right.isDown) return "right";
+    return null;
+  }
+
+  private keyboardStep(dir: KeyboardDir): "ok" | "blocked" | "moving" {
+    if (this.moving) return "moving";
+    const delta = KEY_DELTAS[dir];
+    const next: TileCoord = {
+      col: this.avatarTile.col + delta.col,
+      row: this.avatarTile.row + delta.row,
+    };
+    if (
+      next.col < 0 || next.row < 0 ||
+      next.col >= GRID_SIZE || next.row >= GRID_SIZE ||
+      !this.grid.isWalkable(next.col, next.row)
+    ) {
+      return "blocked";
+    }
+    if (this.net !== null) {
+      this.net.sendMoveTo(next.col, next.row);
+      // Optimistic local tile bookkeeping so the next keyboardStep math
+      // is relative to where we just headed (the server snapshot will
+      // confirm shortly).
+      this.avatarTile = next;
+      return "ok";
+    }
+    this.walk([next]);
+    return "ok";
   }
 
   // --- Settings wiring --------------------------------------------------

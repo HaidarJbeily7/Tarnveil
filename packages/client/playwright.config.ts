@@ -11,7 +11,7 @@ export default defineConfig({
     {
       name: "default",
       use: { baseURL: `http://localhost:${DEFAULT_PORT}` },
-      testMatch: /(?:title\.default|chop|gallery|landing|connect|character|toasts|hud|inventory|skills|chat-panel|combat|quests|market|bank|friends|settings-tabs|loading|polish|visual-gate)\.spec\.ts/,
+      testMatch: /(?:title\.default|chop|gallery|landing|connect|character|toasts|hud|inventory|skills|chat-panel|combat|quests|market|bank|friends|settings-tabs|loading|polish|visual-gate|keyboard-move)\.spec\.ts/,
     },
     {
       name: "branded",
