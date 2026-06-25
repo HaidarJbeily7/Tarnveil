@@ -3,7 +3,7 @@ import Fastify from "fastify";
 import { GAME } from "@tarnveil/shared/game.config";
 import { getRedis } from "./redis.js";
 import { getDb } from "./db.js";
-import { registerAdminRoutes } from "./routes/admin.js";
+import { bumpErrorCount, bumpRequestCount, registerAdminRoutes } from "./routes/admin.js";
 import { registerCharacterRoutes } from "./routes/character.js";
 import { registerChatRoutes } from "./routes/chat.js";
 import { registerCosmeticRoute } from "./routes/cosmetic.js";
@@ -16,6 +16,12 @@ import { registerSpectateRoute } from "./routes/spectate.js";
 export function buildApp(): ReturnType<typeof Fastify> {
   const app = Fastify({ logger: false });
   const redis = getRedis();
+
+  app.addHook("onResponse", async (req, reply) => {
+    const route = `${req.method} ${req.routeOptions?.url ?? req.url}`;
+    bumpRequestCount(route);
+    if (reply.statusCode >= 500) bumpErrorCount(route);
+  });
 
   app.get("/health", async () => ({
     service: `${GAME.slug}-api`,
